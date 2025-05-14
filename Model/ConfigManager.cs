@@ -16,7 +16,7 @@ namespace EasySave.Model
         {
 
         }
-
+        /*
         public bool SaveConfig(Dictionary<string, object> settings)
         { }
 
@@ -40,7 +40,7 @@ namespace EasySave.Model
 
         public string GetConfigPath()
         { }
-
+        */
         public void SetConfigPath(string path)
         { }
 

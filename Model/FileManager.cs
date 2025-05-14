@@ -15,7 +15,7 @@ namespace EasySave.Model
         /// Copy a single file from source to destination
         /// </summary>
         /// <returns>Transfer time in milliseconds, negative if error</returns>
-        public long CopyFile(string sourcePath, string destinationPath, Logger logger = null, string jobName = null)
+     /*   public long CopyFile(string sourcePath, string destinationPath, Logger logger = null, string jobName = null)
         { }
 
         public long CopyDirectory(string sourceDir, string targetDir, bool fullBackup,
@@ -32,6 +32,6 @@ namespace EasySave.Model
 
         public DateTime GetLastModifiedTime(string path)
         { }
-
+        */
         }
 }

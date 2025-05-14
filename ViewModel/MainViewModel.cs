@@ -11,19 +11,23 @@ namespace EasySave.ViewModel
     public class MainViewModel
     {
         private BackupManager _backupManager;
-        private LanguageManager _languageManager;
-        private ConfigManager _configManager;
-        private Logger _logger;
+       // private LanguageManager _languageManager;
+    //    private ConfigManager _configManager;
+    //    private Logger _logger;
 
         /// <summary>
         /// Constructor for MainViewModel
         /// </summary>
         public MainViewModel()
-        { }
-
-        public string GetString(string key)
-        { }
-
+        { 
+            _backupManager = new BackupManager();
+        }
+        /*
+        public new string GetString(string key)
+        {
+            return key;
+        }
+        
         public List<string> GetAvailableLanguages()
         { }
 
@@ -32,13 +36,33 @@ namespace EasySave.ViewModel
 
         public bool ChangeLanguage(string language)
         { }
-
+        */
         public bool CreateBackupJob(string name, string sourceDir, string targetDir, BackupType type)
-        { }
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(sourceDir))
+                {
+                    return false;
+                }   
+                var job = new BackupJob(name, sourceDir, targetDir, type);
+                bool result = _backupManager.AddBackupJob(job);
+                Console.WriteLine($"[DEBUG] MainViewModel: CreateBackupJob '{name}' result: {result}");
+                return result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         public List<BackupJob> GetAllJobs()
-        { }
-
+        {
+            var jobs = _backupManager.GetAllJobs();
+            Console.WriteLine($"[DEBUG] MainViewModel: GetAllJobs returned {jobs.Count} jobs.");
+            return jobs;
+        }
+        /*
         public bool ExecuteBackupJob(string jobName)
         { }
 
@@ -66,6 +90,6 @@ namespace EasySave.ViewModel
         public string GetStatusLogPath()
         { }
 
-
-        }
+        */
+    }
 }

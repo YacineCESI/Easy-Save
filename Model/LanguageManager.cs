@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace EasySave.Model
 {
 
-    public class LanguageManager
+   /* public class LanguageManager
     {
         private string _currentLanguage;
         private Dictionary<string, Dictionary<string, string>> _translations;
@@ -26,10 +26,10 @@ namespace EasySave.Model
 
         public bool SwitchLanguage(string language)
         { }
-
+        
         public void LoadLanguages()
         { }
 
 
-        }
+        }*/
 }
