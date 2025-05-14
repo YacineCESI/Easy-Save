@@ -22,7 +22,6 @@ namespace EasySave.Model
 
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigpath));
             LoadJobs();
-            Console.WriteLine($"[DEBUG] BackupManager initialized. Jobs loaded: {_backupJobs.Count}");
         }
 
         public bool AddBackupJob(BackupJob job)
@@ -30,20 +29,17 @@ namespace EasySave.Model
             // Check if max jobs limit reached
             if (_backupJobs.Count >= MaxJobs)
             {
-                Console.WriteLine($"[DEBUG] AddBackupJob: Job '{job.Name}' added: false. Total jobs: {_backupJobs.Count}");
                 return false;
             }
 
             // Check if job with same name already exists
             if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                Console.WriteLine($"[DEBUG] AddBackupJob: Job '{job.Name}' added: false. Total jobs: {_backupJobs.Count}");
                 return false;
             }
 
             _backupJobs.Add(job);
             SaveJobs();
-            Console.WriteLine($"[DEBUG] AddBackupJob: Job '{job.Name}' added: true. Total jobs: {_backupJobs.Count}");
             return true;
         }
 
@@ -60,7 +56,6 @@ namespace EasySave.Model
         public List<BackupJob> GetAllJobs()
         {
             // Debug: Log the count of jobs
-            Console.WriteLine($"[DEBUG] BackupManager: Returning {_backupJobs.Count} jobs.");
             return _backupJobs.ToList();
         }
 

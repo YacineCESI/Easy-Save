@@ -113,8 +113,6 @@ namespace EasySave.View
             }
            
             bool success = _viewModel.CreateBackupJob(jobName, sourceDirectory, targetDirectory, backupType);
-            Console.WriteLine($"[DEBUG] ConsoleInterface: CreateBackupJob result: {success}");
-
             if (success)
             {
                 
@@ -140,7 +138,6 @@ namespace EasySave.View
 
             List<BackupJob> jobs = _viewModel.GetAllJobs();
 
-            Console.WriteLine($"[DEBUG] ConsoleInterface: DisplayBackupJobs found {jobs.Count} jobs.");
             if (jobs.Count == 0)
             {
                 Console.WriteLine("No backup jobs found.");

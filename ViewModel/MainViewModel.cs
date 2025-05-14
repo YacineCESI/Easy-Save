@@ -47,7 +47,6 @@ namespace EasySave.ViewModel
                 }   
                 var job = new BackupJob(name, sourceDir, targetDir, type);
                 bool result = _backupManager.AddBackupJob(job);
-                Console.WriteLine($"[DEBUG] MainViewModel: CreateBackupJob '{name}' result: {result}");
                 return result;
             }
             catch
@@ -59,7 +58,6 @@ namespace EasySave.ViewModel
         public List<BackupJob> GetAllJobs()
         {
             var jobs = _backupManager.GetAllJobs();
-            Console.WriteLine($"[DEBUG] MainViewModel: GetAllJobs returned {jobs.Count} jobs.");
             return jobs;
         }
         /*
