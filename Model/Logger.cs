@@ -16,6 +16,8 @@ namespace EasySave.Model
 
 
         public Logger()
-        { }
+        { 
+        
+        }
     }
 }

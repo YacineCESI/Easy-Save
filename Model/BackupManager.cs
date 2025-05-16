@@ -26,13 +26,13 @@ namespace EasySave.Model
 
         public bool AddBackupJob(BackupJob job)
         {
-            // Check if max jobs limit reached
+            
             if (_backupJobs.Count >= MaxJobs)
             {
                 return false;
             }
 
-            // Check if job with same name already exists
+          
             if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
@@ -45,28 +45,51 @@ namespace EasySave.Model
 
         public bool RemoveBackupJob(string name)
         {
+            int initialCount = _backupJobs.Count;
+            _backupJobs.RemoveAll(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            if (_backupJobs.Count < initialCount)
+            {
+                SaveJobs();
+                return true;
+            }
+
             return false;
         }
 
         public BackupJob GetBackupJob(string name)
         {
-            throw new NotImplementedException();
+            return _backupJobs.FirstOrDefault(j =>
+                j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
         public List<BackupJob> GetAllJobs()
         {
-            // Debug: Log the count of jobs
+     
             return _backupJobs.ToList();
         }
 
         public bool ExecuteBackupJob(string name)
         {
+            BackupJob job = GetBackupJob(name);
+            if (job != null)
+            {
+                return job.Execute();
+            }
             return false;
         }
 
+   
         public bool ExecuteAllBackupJobs()
         {
-            return false;
+            bool allSuccess = true;
+
+            foreach (BackupJob job in _backupJobs)
+            {
+                allSuccess &= job.Execute();
+            }
+
+            return allSuccess;
         }
 
         public void PauseJob(string name)
@@ -78,11 +101,13 @@ namespace EasySave.Model
         public void StopJob(string name)
         { }
 
+
+
         public void SaveJobs()
         {
             try
             {
-                // Create a serializable format for jobs
+                
                 var jobsData = _backupJobs.Select(j => new
                 {
                     Name = j.Name,

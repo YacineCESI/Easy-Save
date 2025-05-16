@@ -12,15 +12,15 @@ namespace EasySave
     {
         static void Main(string[] args)
         {
-            // Initialize the main view model1
+            
 
 
             var mainViewModel = new MainViewModel();
 
-            // Initialize the console interface
+            
             var consoleInterface = new ConsoleInterface(mainViewModel);
 
-            // Start the application
+           
             consoleInterface.Start();
         }
     }

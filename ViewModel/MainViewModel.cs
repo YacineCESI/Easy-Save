@@ -60,12 +60,24 @@ namespace EasySave.ViewModel
             var jobs = _backupManager.GetAllJobs();
             return jobs;
         }
-        /*
         public bool ExecuteBackupJob(string jobName)
-        { }
+        {
+            return _backupManager.ExecuteBackupJob(jobName);
+        }
 
+       
         public bool ExecuteAllBackupJobs()
-        { }
+        {
+            return _backupManager.ExecuteAllBackupJobs();
+        }
+
+        public bool RemoveJob(string name)
+        {
+            return _backupManager.RemoveBackupJob(name);
+        }
+
+
+        /*
 
         public void PauseJob(string name)
         { }
@@ -79,9 +91,7 @@ namespace EasySave.ViewModel
         public BackupJob GetJob(string name)
         { }
 
-        public bool RemoveJob(string name)
-        { }
-
+       
         public string GetDailyLogPath()
         { }
 
