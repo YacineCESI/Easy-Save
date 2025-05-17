@@ -1,0 +1,150 @@
+﻿<Window x:Class="Easy_Save.View.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Easy_Save.View"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Panneau de navigation à gauche -->
+        <StackPanel Grid.Column="0" Background="White">
+            <Button Content="Create" Height="40" Background="Black" Foreground="White" Margin="10" HorizontalAlignment="Stretch"/>
+            <Button Content="Settings" Height="40" Background="Black" Foreground="White" Margin="10" HorizontalAlignment="Stretch" Click="Button_Click_1"/>
+        </StackPanel>
+
+        <!-- Contenu principal -->
+        <Grid Grid.Column="1" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Barre de progression -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ProgressBar Grid.Column="0" Height="20" Grid.ColumnSpan="2" />
+            </Grid>
+
+            <!-- Boutons "Run all" -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,15,0,15">
+                <Button Content="Resume" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
+                <Button Content="Pause" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
+                <Button Content="Remove" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
+            </StackPanel>
+
+            <!-- Bouton Run all à droite -->
+            <Button Content="Run all" Width="80" Height="30" Background="Black" Foreground="White" 
+                    Grid.Row="1" HorizontalAlignment="Right" Margin="0,15,0,15"/>
+
+            <!-- Tableau des tâches -->
+            <Border Grid.Row="2" BorderBrush="Black" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- En-têtes du tableau -->
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1">
+                            <TextBlock Text="Job name" Padding="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1">
+                            <TextBlock Text="Job type" Padding="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1">
+                            <TextBlock Text="Action" Padding="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Première ligne du tableau avec données -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1">
+                            <TextBlock Text="Job1" Padding="10"/>
+                        </Border>
+                        <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1">
+                            <TextBlock Text="Differential" Padding="10" HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="Stop" Background="Black" Foreground="White" Width="50" Margin="5"/>
+                                <Button Content="Run" Background="Black" Foreground="White" Width="50" Margin="5"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Lignes vides pour le reste du tableau -->
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Ligne 1 vide -->
+                        <Border Grid.Row="0" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="0" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="0" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+
+                        <!-- Ligne 2 vide -->
+                        <Border Grid.Row="1" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="1" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="1" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+
+                        <!-- Ligne 3 vide -->
+                        <Border Grid.Row="2" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="2" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="2" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+
+                        <!-- Ligne 4 vide -->
+                        <Border Grid.Row="3" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="3" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="3" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+
+                        <!-- Ligne 5 vide -->
+                        <Border Grid.Row="4" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="4" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="4" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+
+                        <!-- Ligne 6 vide -->
+                        <Border Grid.Row="5" Grid.Column="0" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="5" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,1,1"/>
+                        <Border Grid.Row="5" Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+        <ProgressBar Grid.Column="1" HorizontalAlignment="Left" Height="10" Margin="750,51,0,0" VerticalAlignment="Top" Width="100"/>
+    </Grid>
+</Window>

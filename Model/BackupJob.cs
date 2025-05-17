@@ -35,75 +35,13 @@ namespace EasySave.Model
             TargetDirectory = targetDirectory;
             Type = type;
             State = JobState.PENDING;
-            Progress = 0.0f;
             LastRunTime = DateTime.MinValue;
-
-            _fileManager = new FileManager();
         }
 
-        public bool Execute()
+        public bool Excute()
         {
-            try
-            {
-                // Set state to running
-                State = JobState.RUNNING;
-                _isPaused = false;
-                _isStopped = false;
-                Progress = 0.0f;
-
-                // Log job start
-                // _logger.UpdateJobStatus(Name, State, Progress);
-
-                // Make sure target directory exists
-                if (!Directory.Exists(TargetDirectory))
-                {
-                    Directory.CreateDirectory(TargetDirectory);
-                }
-
-                // Execute the backup operation
-                bool isFullBackup = (Type == BackupType.FULL);
-                long result = _fileManager.CopyDirectory(SourceDirectory, TargetDirectory, isFullBackup,
-                    onProgressUpdate: (progress) => {
-                        Progress = progress;
-                        //   _logger.UpdateJobStatus(Name, State, Progress);
-
-                        // Handle pause and stop
-                        if (_isPaused)
-                        {
-                            while (_isPaused && !_isStopped)
-                            {
-                                System.Threading.Thread.Sleep(500);
-                            }
-                        }
-                        return !_isStopped; // Continue if not stopped
-                    });
-
-                // Update job completion status
-                LastRunTime = DateTime.Now;
-
-                if (_isStopped)
-                {
-                    State = JobState.PENDING;
-                }
-                else
-                {
-                    State = (result >= 0) ? JobState.COMPLETED : JobState.FAILED;
-                    Progress = (result >= 0) ? 100.0f : Progress;
-                }
-
-                // Log job completion
-                //   _logger.UpdateJobStatus(Name, State, Progress);
-
-                return State == JobState.COMPLETED;
-            }
-            catch (Exception ex)
-            {
-                State = JobState.FAILED;
-                Progress = 0.0f;
-                //     _logger.UpdateJobStatus(Name, State, Progress);
-                //      _logger.LogError(Name, ex.Message);
-                return false;
-            }
+            // TODO: Implement backup execution logic
+            return false;
         }
 
         public void Pause()
@@ -123,14 +61,14 @@ namespace EasySave.Model
 
         public float GetProgress()
         {
-            
-            return Progress;
+            // TODO: Implement progress calculation
+            return 0f;
         }
 
         public JobState GetState()
         {
-            
-            return State;
+            // TODO: Implement state retrieval
+            return JobState.PENDING;
         }
     }
 }

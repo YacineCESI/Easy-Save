@@ -9,6 +9,6 @@ namespace EasySave.Model.Enums
         RUNNING,   
         PAUSED,    
         COMPLETED, 
-        FAILED     
+        FAILED     // Job has failed
     }
 }
