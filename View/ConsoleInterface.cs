@@ -9,18 +9,21 @@ using EasySave.ViewModel;
 
 namespace EasySave.View
 {
+   
     public class ConsoleInterface
     {
         private readonly MainViewModel _viewModel;
 
-
+   
         public ConsoleInterface(MainViewModel viewModel)
         {
             _viewModel = viewModel;
         }
+
+     
         public void Start()
         {
-          bool exit = false;
+            bool exit = false;
 
             while (!exit)
             {
@@ -28,7 +31,6 @@ namespace EasySave.View
                 DisplayHeader();
                 DisplayMenu();
 
-            
                 string choice = GetUserInput();
 
                 switch (choice)
@@ -46,103 +48,108 @@ namespace EasySave.View
                         RunAllBackupJobs();
                         break;
                     case "5":
-                        RemoveBackupJob();  // New option
+                        RemoveBackupJob(); 
                         break;
                     case "6":
-                        exit = ConfirmExit();
+                        ChangeSettings();   
                         break;
-                       default:
-                        Console.WriteLine(("invalidOption"));
-                        WaitForKey(); 
-                        break; 
-           
-                    
-
-                }   
+                    case "7":
+                        exit = ConfirmExit(); 
+                        break;
+                    default:
+                        Console.WriteLine(_viewModel.GetString("invalidOption"));
+                        WaitForKey();
+                        break;
+                }
 
             }
-
-
         }
 
+  
         private void DisplayHeader()
         {
-
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("=====================================");
-            Console.WriteLine("appTitle");
+            Console.WriteLine(_viewModel.GetString("appTitle"));
             Console.WriteLine("=====================================");
             Console.WriteLine();
             Console.ResetColor();
         }
 
+    
+
         private void DisplayMenu()
         {
-            Console.WriteLine("1. Create Job" );
-            Console.WriteLine("2. Menu List Job" );
-            Console.WriteLine("3. Run Job" );
-            Console.WriteLine("4. Run All Jobs" );
-            Console.WriteLine("5. menuRemoveJob");
-            Console.WriteLine("6. exit");
+            Console.WriteLine("1. " + _viewModel.GetString("menuCreateJob"));
+            Console.WriteLine("2. " + _viewModel.GetString("menuListJobs"));
+            Console.WriteLine("3. " + _viewModel.GetString("menuRunJob"));
+            Console.WriteLine("4. " + _viewModel.GetString("menuRunAllJobs"));
+            Console.WriteLine("5. " + _viewModel.GetString("menuRemoveJob"));  // New option
+            Console.WriteLine("6. " + _viewModel.GetString("menuSettings"));   // Changed from 5 to 6
+            Console.WriteLine("7. " + _viewModel.GetString("menuExit"));       // Changed from 6 to 7
+            Console.WriteLine();
+            Console.Write("> ");
         }
+
 
         private string GetUserInput()
         {
-        return Console.ReadLine();
+            return Console.ReadLine();
         }
 
-        private void CreateBackupJob()
-        { 
-           Console.Clear();
-           DisplayHeader();
 
-            Console.WriteLine("Create Job");
+        private void CreateBackupJob()
+        {
+            Console.Clear();
+            DisplayHeader();
+
+            Console.WriteLine(_viewModel.GetString("promptJobName"));
             string jobName = GetUserInput();
 
-            Console.WriteLine("enterSourceDirectory");
-            string sourceDirectory = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptSourceDir"));
+            string sourceDir = GetUserInput();
 
-            if (!Directory.Exists(sourceDirectory))
+     
+            if (!Directory.Exists(sourceDir))
             {
-                Console.WriteLine("invalidSourceDirectory");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(_viewModel.GetString("dirNotFound"));
+                Console.ResetColor();
                 WaitForKey();
                 return;
             }
 
-            Console.WriteLine("Target diriectory");
-            string targetDirectory = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptTargetDir"));
+            string targetDir = GetUserInput();
 
-            Console.WriteLine("Backup type \n1.full\n2.differential):");
-            string backupTypeInput = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptBackupType"));
+            string typeInput = GetUserInput();
 
-          
-                BackupType backupType = BackupType.FULL;
-            
-             
-            if (backupTypeInput == "2")
+            BackupType type = BackupType.FULL;
+            if (typeInput == "2")
             {
-               backupType = BackupType.DIFFERENTIAL;
+                type = BackupType.DIFFERENTIAL;
             }
-           
-            bool success = _viewModel.CreateBackupJob(jobName, sourceDirectory, targetDirectory, backupType);
+
+            bool success = _viewModel.CreateBackupJob(jobName, sourceDir, targetDir, type);
+
             if (success)
             {
-                
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("jo bCreated succeffuly");
+                Console.WriteLine(_viewModel.GetString("jobCreated"));
                 Console.ResetColor();
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("job Error");
+                Console.WriteLine(_viewModel.GetString("jobCreateError"));
                 Console.ResetColor();
             }
 
             WaitForKey();
-
         }
 
+ 
         private void DisplayBackupJobs()
         {
             Console.Clear();
@@ -152,17 +159,27 @@ namespace EasySave.View
 
             if (jobs.Count == 0)
             {
-                Console.WriteLine("No backup jobs found.");
+                Console.WriteLine(_viewModel.GetString("noJobs"));
                 WaitForKey();
                 return;
             }
-            foreach (var job in jobs)
+
+            for (int i = 0; i < jobs.Count; i++)
             {
-                Console.WriteLine($"Job: {job.Name}, \nSource: {job.SourceDirectory}, \nTarget: {job.TargetDirectory}, \nState: {job.State}");
+                var job = jobs[i];
+                Console.WriteLine($"{i + 1}. {job.Name}");
+                Console.WriteLine($"   {_viewModel.GetString("promptSourceDir")} {job.SourceDirectory}");
+                Console.WriteLine($"   {_viewModel.GetString("promptTargetDir")} {job.TargetDirectory}");
+                Console.WriteLine($"   {_viewModel.GetString("promptBackupType")} {job.Type}");
+                Console.WriteLine($"   State: {job.GetState()}");
+                Console.WriteLine($"   Progress: {job.GetProgress():F1}%");
+                Console.WriteLine();
             }
+
             WaitForKey();
         }
 
+    
         private void RunBackupJob()
         {
             Console.Clear();
@@ -172,7 +189,7 @@ namespace EasySave.View
 
             if (jobs.Count == 0)
             {
-                Console.WriteLine("noJobs");
+                Console.WriteLine(_viewModel.GetString("noJobs"));
                 WaitForKey();
                 return;
             }
@@ -183,20 +200,22 @@ namespace EasySave.View
             }
 
             Console.WriteLine();
-            Console.WriteLine("selectJob");
+            Console.WriteLine(_viewModel.GetString("selectJob"));
 
             string input = GetUserInput();
 
             if (!int.TryParse(input, out int jobIndex) || jobIndex < 1 || jobIndex > jobs.Count)
             {
-                Console.WriteLine("invalidJobNumber");
+                Console.WriteLine(_viewModel.GetString("invalidJobNumber"));
                 WaitForKey();
                 return;
             }
 
+      
             BackupJob selectedJob = jobs[jobIndex - 1];
 
-            Console.WriteLine("jobStarted");
+            Console.WriteLine(_viewModel.GetString("jobStarted"));
+
 
             Thread monitorThread = new Thread(() =>
             {
@@ -206,10 +225,9 @@ namespace EasySave.View
 
                 while (running)
                 {
-                   
+              
                     Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r");
 
-                    
                     float progress = job.GetProgress();
                     JobState state = job.GetState();
 
@@ -225,7 +243,7 @@ namespace EasySave.View
                     progressBar += $"] {progress:F1}% - {state}";
                     Console.Write(progressBar);
 
-              
+                 
                     if (state != JobState.RUNNING && state != JobState.PAUSED)
                     {
                         running = false;
@@ -239,20 +257,20 @@ namespace EasySave.View
                         {
                             if (state == JobState.RUNNING)
                             {
-                               //_viewModel.PauseJob(jobName);
+                                _viewModel.PauseJob(jobName);
                                 Console.WriteLine();
-                                Console.WriteLine("jobPaused");
+                                Console.WriteLine(_viewModel.GetString("jobPaused"));
                                 Console.ReadKey(true);
-                                //_viewModel.ResumeJob(jobName);
+                                _viewModel.ResumeJob(jobName);
                             }
                         }
                         else if (key.Key == ConsoleKey.S)
                         {
                             if (state == JobState.RUNNING || state == JobState.PAUSED)
                             {
-                                //_viewModel.StopJob(jobName);
+                                _viewModel.StopJob(jobName);
                                 Console.WriteLine();
-                                Console.WriteLine("jobStopped");
+                                Console.WriteLine(_viewModel.GetString("jobStopped"));
                                 running = false;
                             }
                         }
@@ -266,18 +284,17 @@ namespace EasySave.View
                 if (job.GetState() == JobState.COMPLETED)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("jobCompleted");
+                    Console.WriteLine(_viewModel.GetString("jobCompleted"));
                     Console.ResetColor();
                 }
                 else if (job.GetState() == JobState.FAILED)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("jobFailed");
+                    Console.WriteLine(_viewModel.GetString("jobFailed"));
                     Console.ResetColor();
                 }
             });
 
-     
             bool success = _viewModel.ExecuteBackupJob(selectedJob.Name);
 
             monitorThread.Start();
@@ -286,7 +303,7 @@ namespace EasySave.View
             WaitForKey();
         }
 
-    
+
         private void RunAllBackupJobs()
         {
             Console.Clear();
@@ -296,25 +313,26 @@ namespace EasySave.View
 
             if (jobs.Count == 0)
             {
-                Console.WriteLine("noJobs");
+                Console.WriteLine(_viewModel.GetString("noJobs"));
                 WaitForKey();
                 return;
             }
 
             Console.WriteLine("Running all jobs...");
 
+           
             bool success = _viewModel.ExecuteAllBackupJobs();
 
             if (success)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("allJobsCompleted");
+                Console.WriteLine(_viewModel.GetString("allJobsCompleted"));
                 Console.ResetColor();
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("allJobsCompleted");
+                Console.WriteLine(_viewModel.GetString("allJobsCompleted"));
                 Console.WriteLine("Some jobs may have failed. Check the logs.");
                 Console.ResetColor();
             }
@@ -322,6 +340,58 @@ namespace EasySave.View
             WaitForKey();
         }
 
+    
+        private void ChangeSettings()
+        {
+            Console.Clear();
+            DisplayHeader();
+
+            Console.WriteLine(_viewModel.GetString("changeLanguage"));
+            string language = GetUserInput().ToLower();
+
+            if (language == "en" || language == "fr")
+            {
+                bool success = _viewModel.ChangeLanguage(language);
+
+                if (success)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(_viewModel.GetString("languageChanged"));
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(_viewModel.GetString("invalidOption"));
+                    Console.ResetColor();
+                }
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(_viewModel.GetString("invalidOption"));
+                Console.ResetColor();
+            }
+
+            WaitForKey();
+        }
+
+    
+        private void WaitForKey()
+        {
+            Console.WriteLine();
+            Console.WriteLine(_viewModel.GetString("pressAnyKey"));
+            Console.ReadKey(true);
+        }
+
+   
+        private bool ConfirmExit()
+        {
+            Console.WriteLine(_viewModel.GetString("confirmExit"));
+            string input = GetUserInput().ToLower();
+
+            return (input == "y" || input == "o" || input == "yes" || input == "oui");
+        }
 
         private void RemoveBackupJob()
         {
@@ -332,12 +402,12 @@ namespace EasySave.View
 
             if (jobs.Count == 0)
             {
-                Console.WriteLine("noJobs");
+                Console.WriteLine(_viewModel.GetString("noJobs"));
                 WaitForKey();
                 return;
             }
 
-            // Display all jobs
+   
             for (int i = 0; i < jobs.Count; i++)
             {
                 Console.WriteLine($"{i + 1}. {jobs[i].Name}");
@@ -348,24 +418,23 @@ namespace EasySave.View
 
             string input = GetUserInput();
 
-            // Check for cancel operation
             if (input == "0")
             {
                 return;
             }
 
-            // Validate input
+      
             if (!int.TryParse(input, out int jobIndex) || jobIndex < 1 || jobIndex > jobs.Count)
             {
-                Console.WriteLine("invalidJobNumber");
+                Console.WriteLine(_viewModel.GetString("invalidJobNumber"));
                 WaitForKey();
                 return;
             }
 
-            // Get the job name
+        
             string jobName = jobs[jobIndex - 1].Name;
 
-            // Confirm deletion
+   
             Console.WriteLine($"Are you sure you want to remove job '{jobName}'? (y/n)");
             string confirmation = GetUserInput().ToLower();
 
@@ -394,26 +463,5 @@ namespace EasySave.View
 
             WaitForKey();
         }
-
-        private void ChangeSettings()
-        { }
-
-        private void WaitForKey()
-        {
-            Console.WriteLine();
-            Console.WriteLine("pressAnyKey");
-            Console.ReadKey(true);
-
-        }
-
-        private bool ConfirmExit()
-        {
-            Console.WriteLine("confirmExit");
-            string input = GetUserInput().ToLower();
-
-            return (input == "y" || input == "o" || input == "yes" || input == "oui");
-        }
-
-        }
-
+    }
 }
