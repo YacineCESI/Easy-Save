@@ -16,7 +16,7 @@ namespace EasySave.Model
   
         public Logger()
         {
-            // Set up log file paths in AppData
+          
             string baseLogDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "EasySave", "Logs");
