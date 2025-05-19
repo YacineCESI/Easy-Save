@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:EasySaveV2"
         mc:Ignorable="d"
         Title="Settings" Height="450" Width="800">
+
     <Grid Name="Settings" Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -13,20 +14,84 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Row 0 -->
             <RowDefinition Height="Auto"/>
+            <!-- Row 1 -->
             <RowDefinition Height="Auto"/>
+            <!-- Row 2 -->
             <RowDefinition Height="Auto"/>
+            <!-- Row 3 -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 4 -->
             <RowDefinition Height="*"/>
+            <!-- Row 5 (spacer/flexible) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 6 (buttons) -->
         </Grid.RowDefinitions>
 
-        <Label Content="Change Language" Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-        <ComboBox Name="LanguageComboBox" Grid.Row="1" Grid.Column="0" Margin="0,5,0,0" VerticalAlignment="Top" SelectionChanged="Change_Language_Settings">
+        <!-- COLUMN 0: Language & Process Info -->
+
+        <!-- Change Language -->
+        <Label Content="Change Language"
+               Grid.Row="0" Grid.Column="0"
+               VerticalAlignment="Top"
+               HorizontalAlignment="Left"
+               Margin="0,0,0,5" />
+
+        <ComboBox Name="LanguageComboBox"
+                  Grid.Row="1" Grid.Column="0"
+                  Width="200"
+                  VerticalAlignment="Top"
+                  HorizontalAlignment="Left"
+                  Margin="0,0,0,10"
+                  SelectionChanged="Change_Language_Settings">
             <ComboBoxItem Content="English"/>
             <ComboBoxItem Content="French"/>
         </ComboBox>
 
-        <Label Content="Extension file" Grid.Row="0" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Vertical" Margin="0">
+        <!-- Process Name -->
+        <Label Content="Process Name"
+               Grid.Row="2" Grid.Column="0"
+               VerticalAlignment="Top"
+               HorizontalAlignment="Left"
+               Margin="0,10,0,5" />
+
+        <TextBox x:Name="NameTextBox"
+                 Grid.Row="3" Grid.Column="0"
+                 Width="300"
+                 IsReadOnly="True"
+                 VerticalAlignment="Top"
+                 HorizontalAlignment="Left"
+                 Margin="0,0,0,10" />
+
+        <!-- Process Path -->
+        <Label Content="Process Path"
+               Grid.Row="4" Grid.Column="0"
+               VerticalAlignment="Top"
+               HorizontalAlignment="Left"
+               Margin="0,10,0,5" />
+
+        <TextBox x:Name="NameTextBox_Copy"
+                 Grid.Row="5" Grid.Column="0"
+                 Width="300"
+                 IsReadOnly="True"
+                 VerticalAlignment="Top"
+                 HorizontalAlignment="Left"
+                 Margin="0,0,0,10" />
+
+        <!-- COLUMN 1: File Extension Checkboxes -->
+
+        <Label Content="Extension file"
+               Grid.Row="0" Grid.Column="1"
+               VerticalAlignment="Top"
+               HorizontalAlignment="Left"
+               Margin="0,0,0,5" />
+
+        <StackPanel Grid.Row="1" Grid.Column="1"
+                    Orientation="Vertical"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Left"
+                    Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -40,12 +105,14 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
+                <!-- Row 0 -->
                 <CheckBox Name="PdfCheckBox" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
                 <Label Content="PDF" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0"/>
 
                 <CheckBox Name="ExeCheckBox" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center"/>
                 <Label Content="EXE" Grid.Row="0" Grid.Column="4" VerticalAlignment="Center" Margin="10,0,0,0"/>
 
+                <!-- Row 1 -->
                 <CheckBox Name="DocxCheckBox" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
                 <Label Content="DOCX" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0"/>
 
@@ -54,7 +121,21 @@
             </Grid>
         </StackPanel>
 
-        <Button Name="SaveChangesButton" Content="Save" Grid.Row="6" Grid.Column="0" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="75" Click="SaveChangesButton_Click"/>
-        <Button Name="CancelButton" Content="Cancel" Grid.Row="6" Grid.Column="1" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="CancelButton_Click"/>
+        <!-- Buttons -->
+        <Button Name="SaveChangesButton"
+                Content="Save"
+                Grid.Row="6" Grid.Column="0"
+                Width="100"
+                HorizontalAlignment="Left"
+                Margin="0,10,0,0"
+                Click="SaveChangesButton_Click" />
+
+        <Button Name="CancelButton"
+                Content="Cancel"
+                Grid.Row="6" Grid.Column="1"
+                Width="100"
+                HorizontalAlignment="Right"
+                Margin="0,10,0,0"
+                Click="CancelButton_Click" />
     </Grid>
 </Window>
