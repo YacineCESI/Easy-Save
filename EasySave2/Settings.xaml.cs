@@ -24,7 +24,7 @@ namespace EasySaveV2
             InitializeComponent();
         }
 
-        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void Change_Language_Settings(object sender, SelectionChangedEventArgs e)
         {
 
         }
