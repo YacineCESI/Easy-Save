@@ -7,23 +7,32 @@ using System.Threading.Tasks;
 
 namespace EasySave.Model
 {
+
     public class BackupManager
     {
         private List<BackupJob> _backupJobs;
         private const int MaxJobs = 5;
         private readonly ConfigManager _configManager;
-        private readonly string _jobsConfigpath;
+        private readonly string _jobsConfigPath;
+        private readonly Logger _logger; 
 
+       
         public BackupManager()
         {
             _backupJobs = new List<BackupJob>();
             _configManager = new ConfigManager();
-            _jobsConfigpath = Path.Combine(Directory.GetCurrentDirectory(), "jobs.json");
+            _logger = new Logger(); 
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigpath));
+            _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
+
+           
+            Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
+
+          
             LoadJobs();
         }
 
+      
         public bool AddBackupJob(BackupJob job)
         {
             // Check if max jobs limit reached
@@ -32,7 +41,7 @@ namespace EasySave.Model
                 return false;
             }
 
-            // Check if job with same name already exists
+            
             if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
@@ -40,25 +49,32 @@ namespace EasySave.Model
 
             _backupJobs.Add(job);
             SaveJobs();
+
+           
+            _logger.UpdateJobStatus(job.Name, Enums.JobState.PENDING, 0.0f);
+
             return true;
         }
 
+       
         public bool RemoveBackupJob(string name)
         {
             return false;
         }
 
+        
         public BackupJob GetBackupJob(string name)
         {
             throw new NotImplementedException();
         }
 
+       
         public List<BackupJob> GetAllJobs()
         {
-            // Debug: Log the count of jobs
             return _backupJobs.ToList();
         }
 
+      
         public bool ExecuteBackupJob(string name)
         {
             return false;
@@ -69,14 +85,26 @@ namespace EasySave.Model
             return false;
         }
 
+      
         public void PauseJob(string name)
-        { }
+        {
+            BackupJob job = GetBackupJob(name);
+            job?.Pause();
+        }
 
+   
         public void ResumeJob(string name)
-        { }
+        {
+            BackupJob job = GetBackupJob(name);
+            job?.Resume();
+        }
 
+      
         public void StopJob(string name)
-        { }
+        {
+            BackupJob job = GetBackupJob(name);
+            job?.Stop();
+        }
 
         public void SaveJobs()
         {
@@ -96,7 +124,7 @@ namespace EasySave.Model
                     WriteIndented = true
                 });
 
-                File.WriteAllText(_jobsConfigpath, jsonString);
+                File.WriteAllText(_jobsConfigPath, jsonString);
             }
             catch (Exception ex)
             {
@@ -108,18 +136,21 @@ namespace EasySave.Model
         {
             try
             {
-                if (!File.Exists(_jobsConfigpath))
+                if (!File.Exists(_jobsConfigPath))
                 {
                     return;
                 }
-                string jsonString = File.ReadAllText(_jobsConfigpath);
+
+                string jsonString = File.ReadAllText(_jobsConfigPath);
                 var jobsData = JsonSerializer.Deserialize<List<JobData>>(jsonString);
 
                 _backupJobs.Clear();
 
                 foreach (var data in jobsData)
                 {
+              
                     Enum.TryParse(data.Type, out Enums.BackupType type);
+
                     _backupJobs.Add(new BackupJob(
                         data.Name,
                         data.SourceDirectory,
@@ -130,11 +161,12 @@ namespace EasySave.Model
             }
             catch (Exception ex)
             {
-                // Handle exceptions (e.g., log them)
                 Console.WriteLine($"Error loading jobs: {ex.Message}");
             }
         }
 
+
+        
         private class JobData
         {
             public string Name { get; set; }

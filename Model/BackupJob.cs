@@ -4,7 +4,7 @@ using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
-    /// Represents a backup job with source, destination and execution state
+  
     public class BackupJob
     {
         public string Name { get; private set; }
@@ -16,17 +16,21 @@ namespace EasySave.Model
         public float Progress { get; private set; }
 
         private FileManager _fileManager;
-        private Logger _logger;
 
+ 
         private bool _isPaused;
         private bool _isStopped;
 
+       
         public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type)
         {
+           
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("Job name cannot be empty", nameof(name));
-            if (string.IsNullOrEmpty(sourceDirectory))
-                throw new ArgumentException("Source directory cannot be empty", nameof(sourceDirectory));
+
+            if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
+                throw new ArgumentException("Source directory is invalid or does not exist", nameof(sourceDirectory));
+
             if (string.IsNullOrEmpty(targetDirectory))
                 throw new ArgumentException("Target directory cannot be empty", nameof(targetDirectory));
 
@@ -35,40 +39,137 @@ namespace EasySave.Model
             TargetDirectory = targetDirectory;
             Type = type;
             State = JobState.PENDING;
-            LastRunTime = DateTime.MinValue;
+            Progress = 0.0f;
+
+           
+            _fileManager = new FileManager();
+
+            
+            _isPaused = false;
+            _isStopped = false;
         }
 
-        public bool Excute()
+   
+        public bool Execute()
         {
-            // TODO: Implement backup execution logic
-            return false;
+            try
+            {
+                
+                State = JobState.RUNNING;
+                _isPaused = false;
+                _isStopped = false;
+                Progress = 0.0f;
+
+               
+                var logger = new Logger();
+                logger.UpdateJobStatus(Name, State, Progress);
+
+               
+                if (!Directory.Exists(TargetDirectory))
+                {
+                    Directory.CreateDirectory(TargetDirectory);
+                }
+
+               
+                bool isFullBackup = (Type == BackupType.FULL);
+                long result = _fileManager.CopyDirectory(
+                    SourceDirectory,
+                    TargetDirectory,
+                    isFullBackup,
+                    onProgressUpdate: (progress) => {
+                        Progress = progress;
+                        logger.UpdateJobStatus(Name, State, Progress);
+
+                        
+                        if (_isPaused)
+                        {
+                            while (_isPaused && !_isStopped)
+                            {
+                                System.Threading.Thread.Sleep(500);
+                            }
+                        }
+                        return !_isStopped; 
+                    },
+                    logger: logger, 
+                    jobName: Name
+                );
+
+      
+                LastRunTime = DateTime.Now;
+
+                if (_isStopped)
+                {
+                    State = JobState.PENDING;
+                }
+                else
+                {
+                    State = (result >= 0) ? JobState.COMPLETED : JobState.FAILED;
+                    Progress = (result >= 0) ? 100.0f : Progress;
+                }
+
+                logger.UpdateJobStatus(Name, State, Progress);
+
+                return State == JobState.COMPLETED;
+            }
+            catch (Exception ex)
+            {
+                State = JobState.FAILED;
+                Progress = 0.0f;
+
+           
+                var logger = new Logger();
+                logger.UpdateJobStatus(Name, State, Progress);
+                logger.LogError(Name, ex.Message);
+
+                return false;
+            }
         }
 
+     
         public void Pause()
         {
-            // TODO: Implement pause logic
+            if (State == JobState.RUNNING)
+            {
+                _isPaused = true;
+                State = JobState.PAUSED;
+                var statusLogger = new Logger();
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+            }
         }
 
+      
         public void Resume()
         {
-            // TODO: Implement resume logic
+            if (State == JobState.PAUSED)
+            {
+                _isPaused = false;
+                State = JobState.RUNNING;
+                var statusLogger = new Logger();
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+            }
         }
 
         public void Stop()
         {
-            // TODO: Implement stop logic
+            if (State == JobState.RUNNING || State == JobState.PAUSED)
+            {
+                _isStopped = true;
+                _isPaused = false;
+                State = JobState.PENDING;
+                var statusLogger = new Logger();
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+            }
         }
 
         public float GetProgress()
         {
-            // TODO: Implement progress calculation
-            return 0f;
+            return Progress;
         }
 
         public JobState GetState()
         {
-            // TODO: Implement state retrieval
-            return JobState.PENDING;
+            return State;
         }
     }
 }
+    
