@@ -14,7 +14,7 @@
 
         <!-- Panneau de navigation à gauche -->
         <StackPanel Grid.Column="0" Background="White">
-            <Button Content="Create" Height="40" Background="Black" Foreground="White" Margin="10" HorizontalAlignment="Stretch"/>
+            <Button Content="Create" Height="40" Background="Black" Foreground="White" Margin="10" HorizontalAlignment="Stretch" Click="CreateButton_Click"/>
             <Button Content="Settings" Height="40" Background="Black" Foreground="White" Margin="10" HorizontalAlignment="Stretch" Click="Button_Click_1"/>
         </StackPanel>
 
@@ -37,14 +37,14 @@
 
             <!-- Boutons "Run all" -->
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,15,0,15">
-                <Button Content="Resume" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
-                <Button Content="Pause" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
-                <Button Content="Remove" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0"/>
+                <Button Content="Resume" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0" Click="ResumeButton_Click"/>
+                <Button Content="Pause" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0" Click="PauseButton_Click"/>
+                <Button Content="Remove" Width="80" Height="30" Background="Black" Foreground="White" Margin="0,0,10,0" Click="RemoveButton_Click"/>
             </StackPanel>
 
             <!-- Bouton Run all à droite -->
             <Button Content="Run all" Width="80" Height="30" Background="Black" Foreground="White" 
-                    Grid.Row="1" HorizontalAlignment="Right" Margin="0,15,0,15"/>
+                    Grid.Row="1" HorizontalAlignment="Right" Margin="0,15,0,15" Click="RunAllButton_Click"/>
 
             <!-- Tableau des tâches -->
             <Border Grid.Row="2" BorderBrush="Black" BorderThickness="1">
@@ -90,8 +90,8 @@
                         </Border>
                         <Border Grid.Column="2" BorderBrush="Black" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="Stop" Background="Black" Foreground="White" Width="50" Margin="5"/>
-                                <Button Content="Run" Background="Black" Foreground="White" Width="50" Margin="5"/>
+                                <Button Content="Stop" Background="Black" Foreground="White" Width="50" Margin="5" Click="StopButton_Click"/>
+                                <Button Content="Run" Background="Black" Foreground="White" Width="50" Margin="5" Click="RunButton_Click"/>
                             </StackPanel>
                         </Border>
                     </Grid>

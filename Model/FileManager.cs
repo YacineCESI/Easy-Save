@@ -11,29 +11,24 @@ namespace EasySave.Model
     /// </summary>
     public class FileManager
     {
-       
         public long CopyFile(string sourcePath, string destinationPath, Logger logger = null, string jobName = null)
         {
             try
             {
-              
                 string destinationDirectory = Path.GetDirectoryName(destinationPath);
                 if (!Directory.Exists(destinationDirectory))
                 {
                     Directory.CreateDirectory(destinationDirectory);
                 }
 
-             
                 var fileInfo = new FileInfo(sourcePath);
                 long fileSize = fileInfo.Length;
 
-               
                 var stopWatch = System.Diagnostics.Stopwatch.StartNew();
                 File.Copy(sourcePath, destinationPath, true);
                 stopWatch.Stop();
                 long transferTime = stopWatch.ElapsedMilliseconds;
 
-               
                 if (logger != null && !string.IsNullOrEmpty(jobName))
                 {
                     logger.LogAction(jobName, sourcePath, destinationPath, fileSize, transferTime);
@@ -43,7 +38,6 @@ namespace EasySave.Model
             }
             catch (Exception ex)
             {
-                
                 if (logger != null && !string.IsNullOrEmpty(jobName))
                 {
                     logger.LogAction(jobName, sourcePath, destinationPath, 0, -1);
@@ -52,27 +46,22 @@ namespace EasySave.Model
             }
         }
 
-  
- 
         public long CopyDirectory(string sourceDir, string targetDir, bool fullBackup,
             Func<float, bool> onProgressUpdate = null, Logger logger = null, string jobName = null)
         {
             try
             {
-               
                 if (!Directory.Exists(targetDir))
                 {
                     Directory.CreateDirectory(targetDir);
                 }
 
-               
                 var sourceFiles = GetDirectoryFiles(sourceDir);
                 if (sourceFiles.Count == 0)
                 {
-                    return 0; 
+                    return 0;
                 }
 
-                
                 List<string> filesToCopy = sourceFiles;
                 if (!fullBackup && Directory.Exists(targetDir))
                 {
@@ -81,20 +70,17 @@ namespace EasySave.Model
 
                 if (filesToCopy.Count == 0)
                 {
-                    return 0; 
+                    return 0;
                 }
 
-               
                 int totalFiles = filesToCopy.Count;
                 int copiedFiles = 0;
 
                 foreach (string sourceFile in filesToCopy)
                 {
-                  
                     string relativePath = sourceFile.Substring(sourceDir.Length + 1);
                     string targetFile = Path.Combine(targetDir, relativePath);
 
-                    
                     long result = CopyFile(sourceFile, targetFile, logger, jobName);
 
                     if (result >= 0)
@@ -119,7 +105,6 @@ namespace EasySave.Model
             }
         }
 
-        
         public List<string> GetDirectoryFiles(string directoryPath)
         {
             try
@@ -133,24 +118,21 @@ namespace EasySave.Model
         }
 
         public List<string> CompareDirectories(string sourceDir, string targetDir)
-        { }
-
+        {
+            var filesToCopy = new List<string>();
             var sourceFiles = GetDirectoryFiles(sourceDir);
 
             foreach (string sourceFile in sourceFiles)
             {
-               
                 string relativePath = sourceFile.Substring(sourceDir.Length + 1);
                 string targetFile = Path.Combine(targetDir, relativePath);
 
-                
                 if (!File.Exists(targetFile))
                 {
                     filesToCopy.Add(sourceFile);
                     continue;
                 }
 
-                
                 DateTime sourceLastModified = File.GetLastWriteTime(sourceFile);
                 DateTime targetLastModified = File.GetLastWriteTime(targetFile);
 
@@ -164,10 +146,27 @@ namespace EasySave.Model
         }
 
         public long GetFileSize(string path)
-        { }
+        {
+            try
+            {
+                return new FileInfo(path).Length;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
 
         public DateTime GetLastModifiedTime(string path)
-        { }
-        */
+        {
+            try
+            {
+                return File.GetLastWriteTime(path);
+            }
+            catch
+            {
+                return DateTime.MinValue;
+            }
         }
+    }
 }

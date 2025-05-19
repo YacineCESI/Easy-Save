@@ -8,21 +8,17 @@ namespace EasySave.ViewModel
     public class MainViewModel
     {
         private BackupManager _backupManager;
-
         private ConfigManager _configManager;
         private Logger _logger;
-
 
         public MainViewModel()
         {
             _backupManager = new BackupManager();
-
             _configManager = new ConfigManager();
             _logger = new Logger();
         }
 
-
-       /* public string GetString(string key)
+        /* public string GetString(string key)
         {
      
         }
@@ -69,10 +65,28 @@ namespace EasySave.ViewModel
         }
 
         public bool ExecuteBackupJob(string jobName)
-        { }
+        {
+            var job = _backupManager.GetBackupJob(jobName);
+            if (job != null)
+            {
+                return job.Execute();
+            }
+            return false;
+        }
 
         public bool ExecuteAllBackupJobs()
-        { }
+        {
+            var jobs = _backupManager.GetAllJobs();
+            bool success = true;
+            foreach (var job in jobs)
+            {
+                if (!job.Execute())
+                {
+                    success = false;
+                }
+            }
+            return success;
+        }
 
 
         public void PauseJob(string name)
@@ -86,7 +100,6 @@ namespace EasySave.ViewModel
             _backupManager.ResumeJob(name);
         }
 
->
         public void StopJob(string name)
         {
             _backupManager.StopJob(name);
