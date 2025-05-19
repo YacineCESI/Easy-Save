@@ -9,18 +9,21 @@ using EasySave.ViewModel;
 
 namespace EasySave.View
 {
+   
     public class ConsoleInterface
     {
         private readonly MainViewModel _viewModel;
 
-
+   
         public ConsoleInterface(MainViewModel viewModel)
         {
             _viewModel = viewModel;
         }
+
+     
         public void Start()
         {
-          bool exit = false;
+            bool exit = false;
 
             while (!exit)
             {
@@ -28,7 +31,6 @@ namespace EasySave.View
                 DisplayHeader();
                 DisplayMenu();
 
-            
                 string choice = GetUserInput();
 
                 switch (choice)
@@ -44,7 +46,7 @@ namespace EasySave.View
                         break;
                     default:
                         Console.WriteLine(("invalidOption"));
-                        WaitForKey(); // Ajout d'un appel à une méthode pour attendre une entrée utilisateur
+                        WaitForKey(); // Ajout d'un appel ï¿½ une mï¿½thode pour attendre une entrï¿½e utilisateur
                         break; // Ajout d'une instruction break pour corriger l'erreur CS8070
            
                     
@@ -52,20 +54,20 @@ namespace EasySave.View
                 }   
 
             }
-
-
         }
 
+  
         private void DisplayHeader()
         {
-
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("=====================================");
-            Console.WriteLine("appTitle");
+            Console.WriteLine(_viewModel.GetString("appTitle"));
             Console.WriteLine("=====================================");
             Console.WriteLine();
             Console.ResetColor();
         }
+
+    
 
         private void DisplayMenu()
         {
@@ -74,63 +76,65 @@ namespace EasySave.View
             Console.WriteLine("3. exit");
         }
 
+
         private string GetUserInput()
         {
-        return Console.ReadLine();
+            return Console.ReadLine();
         }
 
-        private void CreateBackupJob()
-        { 
-           Console.Clear();
-           DisplayHeader();
 
-            Console.WriteLine("Create Job");
+        private void CreateBackupJob()
+        {
+            Console.Clear();
+            DisplayHeader();
+
+            Console.WriteLine(_viewModel.GetString("promptJobName"));
             string jobName = GetUserInput();
 
-            Console.WriteLine("enterSourceDirectory");
-            string sourceDirectory = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptSourceDir"));
+            string sourceDir = GetUserInput();
 
-            if (!Directory.Exists(sourceDirectory))
+     
+            if (!Directory.Exists(sourceDir))
             {
-                Console.WriteLine("invalidSourceDirectory");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(_viewModel.GetString("dirNotFound"));
+                Console.ResetColor();
                 WaitForKey();
                 return;
             }
 
-            Console.WriteLine("Target diriectory");
-            string targetDirectory = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptTargetDir"));
+            string targetDir = GetUserInput();
 
-            Console.WriteLine("Backup type \n1.full\n2.differential):");
-            string backupTypeInput = GetUserInput();
+            Console.WriteLine(_viewModel.GetString("promptBackupType"));
+            string typeInput = GetUserInput();
 
-          
-                BackupType backupType = BackupType.FULL;
-            
-             
-            if (backupTypeInput == "2")
+            BackupType type = BackupType.FULL;
+            if (typeInput == "2")
             {
-               backupType = BackupType.DIFFERENTIAL;
+                type = BackupType.DIFFERENTIAL;
             }
-           
-            bool success = _viewModel.CreateBackupJob(jobName, sourceDirectory, targetDirectory, backupType);
+
+            bool success = _viewModel.CreateBackupJob(jobName, sourceDir, targetDir, type);
+
             if (success)
             {
-                
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("jo bCreated succeffuly");
+                Console.WriteLine(_viewModel.GetString("jobCreated"));
                 Console.ResetColor();
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("job Error");
+                Console.WriteLine(_viewModel.GetString("jobCreateError"));
                 Console.ResetColor();
             }
 
             WaitForKey();
-
         }
 
+ 
         private void DisplayBackupJobs()
         {
             Console.Clear();
@@ -140,17 +144,27 @@ namespace EasySave.View
 
             if (jobs.Count == 0)
             {
-                Console.WriteLine("No backup jobs found.");
+                Console.WriteLine(_viewModel.GetString("noJobs"));
                 WaitForKey();
                 return;
             }
-            foreach (var job in jobs)
+
+            for (int i = 0; i < jobs.Count; i++)
             {
-                Console.WriteLine($"Job: {job.Name}, \nSource: {job.SourceDirectory}, \nTarget: {job.TargetDirectory}, \nState: {job.State}");
+                var job = jobs[i];
+                Console.WriteLine($"{i + 1}. {job.Name}");
+                Console.WriteLine($"   {_viewModel.GetString("promptSourceDir")} {job.SourceDirectory}");
+                Console.WriteLine($"   {_viewModel.GetString("promptTargetDir")} {job.TargetDirectory}");
+                Console.WriteLine($"   {_viewModel.GetString("promptBackupType")} {job.Type}");
+                Console.WriteLine($"   State: {job.GetState()}");
+                Console.WriteLine($"   Progress: {job.GetProgress():F1}%");
+                Console.WriteLine();
             }
+
             WaitForKey();
         }
 
+    
         private void RunBackupJob()
         { }
 
