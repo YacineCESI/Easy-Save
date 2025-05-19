@@ -23,7 +23,7 @@ namespace EasySave.Model
         {
             _configManager = new ConfigManager();
 
-            _resourceManager = Resources.Strings.ResourceManager;
+            _resourceManager = Easy_Save.Resources.Strings.ResourceManager;
 
           
             LoadLanguages();
