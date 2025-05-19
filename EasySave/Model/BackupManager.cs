@@ -7,101 +7,132 @@ using System.Threading.Tasks;
 
 namespace EasySave.Model
 {
-                                            public class BackupManager
-    {
-        private List<BackupJob> _backupJobs = new();
-        private Queue<BackupJob> _jobQueue = new();
-        private readonly ConfigManager _configManager;
-        private readonly Logger _logger;
-        private readonly BusinessSoftwareManager _businessSoftwareManager;
-        private readonly string _jobsConfigPath;
 
+    public class BackupManager
+    {
+        private List<BackupJob> _backupJobs;
+        private const int MaxJobs = 5;
+        private readonly ConfigManager _configManager;
+        private readonly string _jobsConfigPath;
+        private readonly Logger _logger; 
+
+       
         public BackupManager()
         {
+            _backupJobs = new List<BackupJob>();
             _configManager = new ConfigManager();
-            _logger = new Logger();
-            _businessSoftwareManager = new BusinessSoftwareManager(_configManager);
+            _logger = new Logger(); 
+
             _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
 
+           
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
+
+          
             LoadJobs();
         }
 
+      
         public bool AddBackupJob(BackupJob job)
         {
-            if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
+            
+            if (_backupJobs.Count >= MaxJobs)
+            {
                 return false;
+            }
+
+            
+            if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
 
             _backupJobs.Add(job);
             SaveJobs();
+
+           
             _logger.UpdateJobStatus(job.Name, Enums.JobState.PENDING, 0.0f);
+
             return true;
         }
 
+       
         public bool RemoveBackupJob(string name)
         {
-            var job = _backupJobs.FirstOrDefault(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (job == null) return false;
+            int initialCount = _backupJobs.Count;
+            _backupJobs.RemoveAll(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-            _backupJobs.Remove(job);
-            SaveJobs();
-            return true;
+            if (_backupJobs.Count < initialCount)
+            {
+                SaveJobs();
+                return true;
+            }
+
+            return false;
         }
 
-        public BackupJob GetBackupJob(string name) => _backupJobs.FirstOrDefault(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        
+        public BackupJob GetBackupJob(string name)
+        {
+            return _backupJobs.FirstOrDefault(j =>
+                j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
 
-        public List<BackupJob> GetAllJobs() => new List<BackupJob>(_backupJobs);
+       
+        public List<BackupJob> GetAllJobs()
+        {
+            return _backupJobs.ToList();
+        }
 
+      
         public bool ExecuteBackupJob(string name)
         {
-            if (_businessSoftwareManager.IsBusinessSoftwareRunning())
-                return false;
-
-            var job = GetBackupJob(name);
-            if (job == null) return false;
-
-            return job.Execute();
+            BackupJob job = GetBackupJob(name);
+            if (job != null)
+            {
+                return job.Execute();
+            }
+            return false;
         }
 
         public bool ExecuteAllBackupJobs()
         {
-            if (_businessSoftwareManager.IsBusinessSoftwareRunning())
-                return false;
+            bool allSuccess = true;
 
-            foreach (var job in _backupJobs)
+            foreach (BackupJob job in _backupJobs)
             {
-                if (_businessSoftwareManager.IsBusinessSoftwareRunning())
-                    break;
-
-                job.Execute();
+                allSuccess &= job.Execute();
             }
-            return true;
+
+            return allSuccess;
         }
 
+      
         public void PauseJob(string name)
         {
-            var job = GetBackupJob(name);
+            BackupJob job = GetBackupJob(name);
             job?.Pause();
         }
 
+   
         public void ResumeJob(string name)
         {
-            var job = GetBackupJob(name);
+            BackupJob job = GetBackupJob(name);
             job?.Resume();
         }
 
+      
         public void StopJob(string name)
         {
-            var job = GetBackupJob(name);
+            BackupJob job = GetBackupJob(name);
             job?.Stop();
         }
-
-        public bool CheckBusinessSoftwareRunning() => _businessSoftwareManager.IsBusinessSoftwareRunning();
 
         public void SaveJobs()
         {
             try
             {
+                
                 var jobsData = _backupJobs.Select(j => new
                 {
                     Name = j.Name,
@@ -139,6 +170,7 @@ namespace EasySave.Model
 
                 foreach (var data in jobsData)
                 {
+              
                     Enum.TryParse(data.Type, out Enums.BackupType type);
 
                     _backupJobs.Add(new BackupJob(
@@ -155,6 +187,8 @@ namespace EasySave.Model
             }
         }
 
+
+        
         private class JobData
         {
             public string Name { get; set; }
