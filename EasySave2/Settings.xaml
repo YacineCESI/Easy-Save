@@ -7,14 +7,38 @@
         mc:Ignorable="d"
         Title="Settings" Height="450" Width="800">
     <Grid Name="Settings" Margin="10">
-        <Label Content="Change Language" Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left"></Label>
-        <ComboBox Name="LanguageComboBox" Grid.Row="0" Grid.Column="1" Margin="5,25,0,0" VerticalAlignment="Top" SelectionChanged="Change_Language_Settings">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Change Language (Left) -->
+        <Label Content="Change Language" Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+        <ComboBox Name="LanguageComboBox" Grid.Row="1" Grid.Column="0" Margin="0,5,0,0" VerticalAlignment="Top" SelectionChanged="Change_Language_Settings">
             <ComboBoxItem Content="English"/>
             <ComboBoxItem Content="French"/>
         </ComboBox>
-        <Label Content="Current Process" Grid.Row="2" Grid.Column="0" VerticalAlignment="Top" Margin="0,62,0,0"/>
-        <TextBox Name="CurrentProcessTextBox" Margin="5,90,0,0" VerticalAlignment="Top" IsReadOnly="True"/>
-        <TextBox Name="Path" Grid.Column="0" VerticalAlignment="Top" Margin="5,126,0,0" IsReadOnly="True"/>
+
+        <!-- Extension File (Right) -->
+        <Label Content="Extension file" Grid.Row="0" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+        <CheckBox Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Grid.Row="1" Margin="9,0,0,0"/>
+        <Label Content="PDF" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Grid.Row="1" Margin="29,0,0,0"/>
+        <CheckBox Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Grid.Row="1" Margin="274,0,0,0"/>
+        <Label Content="DOCX" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="4" Margin="29,35,0,0"></Label>
+        <CheckBox Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="4" Margin="9,39,0,0"/>
+        <Label Content="EXE" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Grid.Row="1" Margin="290,0,0,0"/>
+        <CheckBox Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="4" Margin="274,39,0,0"/>
+        <Label Content="CLS" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="4" Margin="290,33,0,0"></Label>
+        <Label Content="Current Process" Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" Margin="0,33,0,0"/>
+        <TextBox Name="CurrentProcessTextBox" Margin="5,69,0,0" VerticalAlignment="Top" IsReadOnly="True" Grid.Row="4"/>
+        <TextBox Name="Path" Grid.Column="0" VerticalAlignment="Top" Margin="5,98,0,0" IsReadOnly="True" Grid.Row="4"/>
         <Button Name="SaveChangesButton" Content="Save" Grid.Row="6" Grid.Column="0" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="75" Click="SaveChangesButton_Click"/>
         <Button Name="CancelButton" Content="Cancel" Grid.Row="6" Grid.Column="1" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="CancelButton_Click"/>
     </Grid>

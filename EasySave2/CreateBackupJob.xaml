@@ -38,8 +38,7 @@
         <TextBox Grid.Row="5" Grid.Column="1" VerticalAlignment="Top" Margin="5,139,0,0"/>
         <Button Name="DestinationPackageButton" Content="Browse" Grid.Row="5" Grid.Column="1" Margin="0,139,0,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Click="DestinationPackageButton_Click" Height="18"/>
         <Label Content="Encryption:" Grid.Row="6" Grid.Column="0" VerticalAlignment="Top" Margin="0,169,0,0"/>
-        <CheckBox Name="EncryptionCheckBox" Content="Encrypt" Grid.Row="6" Grid.Column="1" VerticalAlignment="Top" Margin="5,175,0,0"/>
-        <Button Name="CreateJobButton" Content="Create Job" Grid.Row="6" Grid.Column="0" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="75" Click="CreateJobButton_Click"/>
+        <Button Name="CreateJobButton" Content="Create Job" Grid.Row="1" Grid.Column="0" Margin="5,363,0,5" HorizontalAlignment="Left" Width="75" Click="CreateJobButton_Click"/>
         <Button Name="CancelButton" Content="Cancel" Grid.Row="6" Grid.Column="1" Margin="5,211,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="CancelButton_Click"/>
     </Grid>
 </Window>
