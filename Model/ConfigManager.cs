@@ -11,29 +11,29 @@ namespace EasySave.Model
         private string _configPath;
         private Dictionary<string, object> _settings;
 
- 
+
         public ConfigManager()
         {
-            
+
             string baseConfigDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "EasySave");
 
-           
+
             Directory.CreateDirectory(baseConfigDirectory);
 
             _configPath = Path.Combine(baseConfigDirectory, "config.json");
             _settings = new Dictionary<string, object>();
 
-           
+
             if (File.Exists(_configPath))
             {
                 LoadConfig();
             }
             else
             {
-               
-                _settings["Language"] = "en"; 
+
+                _settings["Language"] = "en";
                 SaveConfig(_settings);
             }
         }
@@ -57,7 +57,7 @@ namespace EasySave.Model
             }
         }
 
- 
+
         public Dictionary<string, object> LoadConfig()
         {
             try
@@ -76,14 +76,14 @@ namespace EasySave.Model
             }
         }
 
-       
+
         public T GetSetting<T>(string key, T defaultValue = default)
         {
             if (_settings.ContainsKey(key))
             {
                 try
                 {
-                   
+
                     if (_settings[key] is JsonElement element)
                     {
                         return (T)Convert.ChangeType(element.GetRawText().Trim('"'), typeof(T));
@@ -98,7 +98,7 @@ namespace EasySave.Model
             return defaultValue;
         }
 
-     
+
         public bool SetSetting<T>(string key, T value)
         {
             try
@@ -123,7 +123,7 @@ namespace EasySave.Model
         {
             SetSetting("Language", language);
         }
-    
+
         public string GetConfigPath()
         {
             return GetSetting<string>("ConfigPath",

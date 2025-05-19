@@ -25,37 +25,37 @@ namespace EasySave.Model
 
             _resourceManager = Resources.Strings.ResourceManager;
 
-          
+
             LoadLanguages();
 
-            
+
             _currentLanguage = _configManager.GetLanguage();
 
-            
+
             if (!_availableLanguages.Contains(_currentLanguage))
             {
                 _currentLanguage = "en";
                 _configManager.SetLanguage(_currentLanguage);
             }
 
-           
+
             SetCurrentCulture(_currentLanguage);
         }
 
-     
+
         public string GetString(string key)
         {
             string result = _resourceManager.GetString(key);
 
             if (string.IsNullOrEmpty(result))
             {
-               
+
                 var originalCulture = Thread.CurrentThread.CurrentUICulture;
                 Thread.CurrentThread.CurrentUICulture = new CultureInfo("en");
                 result = _resourceManager.GetString(key);
                 Thread.CurrentThread.CurrentUICulture = originalCulture;
 
-           
+
                 if (string.IsNullOrEmpty(result))
                 {
                     return key;
@@ -70,13 +70,13 @@ namespace EasySave.Model
             return _currentLanguage;
         }
 
-       
+
         public List<string> GetAvailableLanguages()
         {
             return _availableLanguages;
         }
 
-        
+
         public bool SwitchLanguage(string language)
         {
             if (_availableLanguages.Contains(language))
@@ -89,23 +89,23 @@ namespace EasySave.Model
             return false;
         }
 
-       
+
         private void SetCurrentCulture(string languageCode)
         {
             try
             {
-                
+
                 CultureInfo culture = new CultureInfo(languageCode);
                 Thread.CurrentThread.CurrentUICulture = culture;
             }
             catch (CultureNotFoundException)
             {
-              
+
                 Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             }
         }
 
-      
+
         public void LoadLanguages()
         {
             _availableLanguages = new List<string>();

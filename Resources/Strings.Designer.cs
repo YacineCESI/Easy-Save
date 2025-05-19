@@ -60,7 +60,7 @@ namespace EasySave.Resources
             }
         }
 
-   
+
         internal static string allJobsCompleted
         {
             get
@@ -104,7 +104,7 @@ namespace EasySave.Resources
             }
         }
 
- 
+
 
         internal static string invalidJobNumber
         {
@@ -114,7 +114,7 @@ namespace EasySave.Resources
             }
         }
 
-    
+
         internal static string invalidOption
         {
             get
@@ -186,7 +186,7 @@ namespace EasySave.Resources
             }
         }
 
- 
+
         internal static string languageChanged
         {
             get
@@ -229,7 +229,7 @@ namespace EasySave.Resources
             }
         }
 
-   
+
         internal static string menuRunAllJobs
         {
             get
@@ -256,7 +256,7 @@ namespace EasySave.Resources
             }
         }
 
-    
+
         internal static string noJobs
         {
             get
@@ -265,7 +265,7 @@ namespace EasySave.Resources
             }
         }
 
- 
+
         internal static string pauseJob
         {
             get
@@ -274,7 +274,7 @@ namespace EasySave.Resources
             }
         }
 
-        
+
         internal static string pressAnyKey
         {
             get
@@ -283,7 +283,7 @@ namespace EasySave.Resources
             }
         }
 
-   
+
         internal static string promptBackupType
         {
             get
@@ -292,7 +292,7 @@ namespace EasySave.Resources
             }
         }
 
-    
+
         internal static string promptJobName
         {
             get
@@ -310,7 +310,7 @@ namespace EasySave.Resources
             }
         }
 
-    
+
         internal static string promptTargetDir
         {
             get
@@ -319,7 +319,7 @@ namespace EasySave.Resources
             }
         }
 
-  
+
         internal static string selectJob
         {
             get
