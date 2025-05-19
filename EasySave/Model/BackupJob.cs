@@ -1,30 +1,28 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
-  
     public class BackupJob
     {
-        public string Name { get; private set; }
-        public string SourceDirectory { get; private set; }
-        public string TargetDirectory { get; private set; }
-        public BackupType Type { get; private set; }
-        public JobState State { get; private set; }
-        public DateTime LastRunTime { get; private set; }
-        public float Progress { get; private set; }
+        public string Name { get; set; }
+        public string SourceDirectory { get; set; }
+        public string TargetDirectory { get; set; }
+        public BackupType Type { get; set; }
+        public JobState State { get; set; }
+        public DateTime LastRunTime { get; set; }
+        public float Progress { get; set; }
+        public bool EncryptionEnabled { get; set; }
+        public List<string> FilesToEncrypt { get; set; } = new();
 
         private FileManager _fileManager;
-
- 
         private bool _isPaused;
         private bool _isStopped;
 
-       
         public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type)
         {
-           
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("Job name cannot be empty", nameof(name));
 
@@ -41,46 +39,38 @@ namespace EasySave.Model
             State = JobState.PENDING;
             Progress = 0.0f;
 
-           
             _fileManager = new FileManager();
-
-            
             _isPaused = false;
             _isStopped = false;
         }
 
-   
         public bool Execute()
         {
             try
             {
-                
                 State = JobState.RUNNING;
                 _isPaused = false;
                 _isStopped = false;
                 Progress = 0.0f;
 
-               
                 var logger = new Logger();
                 logger.UpdateJobStatus(Name, State, Progress);
 
-               
                 if (!Directory.Exists(TargetDirectory))
                 {
                     Directory.CreateDirectory(TargetDirectory);
                 }
 
-               
                 bool isFullBackup = (Type == BackupType.FULL);
                 long result = _fileManager.CopyDirectory(
                     SourceDirectory,
                     TargetDirectory,
                     isFullBackup,
-                    onProgressUpdate: (progress) => {
+                    onProgressUpdate: (progress) =>
+                    {
                         Progress = progress;
                         logger.UpdateJobStatus(Name, State, Progress);
 
-                        
                         if (_isPaused)
                         {
                             while (_isPaused && !_isStopped)
@@ -88,13 +78,14 @@ namespace EasySave.Model
                                 System.Threading.Thread.Sleep(500);
                             }
                         }
-                        return !_isStopped; 
+                        return !_isStopped;
                     },
-                    logger: logger, 
-                    jobName: Name
+                    logger: logger,
+                    jobName: Name,
+                    encryptionEnabled: EncryptionEnabled,
+                    filesToEncrypt: FilesToEncrypt
                 );
 
-      
                 LastRunTime = DateTime.Now;
 
                 if (_isStopped)
@@ -116,7 +107,6 @@ namespace EasySave.Model
                 State = JobState.FAILED;
                 Progress = 0.0f;
 
-           
                 var logger = new Logger();
                 logger.UpdateJobStatus(Name, State, Progress);
                 logger.LogError(Name, ex.Message);
@@ -125,7 +115,6 @@ namespace EasySave.Model
             }
         }
 
-     
         public void Pause()
         {
             if (State == JobState.RUNNING)
@@ -137,7 +126,6 @@ namespace EasySave.Model
             }
         }
 
-      
         public void Resume()
         {
             if (State == JobState.PAUSED)
@@ -172,4 +160,3 @@ namespace EasySave.Model
         }
     }
 }
-    

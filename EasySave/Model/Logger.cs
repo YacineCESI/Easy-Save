@@ -7,39 +7,36 @@ using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
-  
     public class Logger
     {
         private string _dailyLogPath;
         private string _statusLogPath;
 
-  
         public Logger()
         {
-          
             string baseLogDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "EasySave", "Logs");
 
-         
             Directory.CreateDirectory(baseLogDirectory);
 
             string dailyLogName = $"DailyLog_{DateTime.Now:yyyy-MM-dd}.json";
             _dailyLogPath = Path.Combine(baseLogDirectory, dailyLogName);
 
-          
             _statusLogPath = Path.Combine(baseLogDirectory, "Status.json");
 
-        
             EnsureLogExists();
         }
 
-  
         public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime)
+        {
+            LogAction(jobName, sourceFile, destinationFile, fileSize, transferTime, 0);
+        }
+
+        public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime, long encryptionTime)
         {
             try
             {
-          
                 string uncSource = ToUncPath(sourceFile);
                 string uncDestination = ToUncPath(destinationFile);
 
@@ -50,13 +47,12 @@ namespace EasySave.Model
                     SourcePath = uncSource,
                     DestinationPath = uncDestination,
                     FileSize = fileSize,
-                    TransferTime = transferTime
+                    TransferTime = transferTime,
+                    EncryptionTime = encryptionTime
                 };
 
-                
                 string jsonEntry = FormatLogEntry(logEntry);
 
-             
                 File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
             }
             catch (Exception ex)
@@ -80,9 +76,7 @@ namespace EasySave.Model
                     ErrorMessage = errorMessage
                 };
 
-     
                 string jsonEntry = FormatLogEntry(logEntry);
-
 
                 File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
             }
@@ -92,12 +86,35 @@ namespace EasySave.Model
             }
         }
 
+        public void LogEncryptionDetails(string filePath, long encryptionTime)
+        {
+            try
+            {
+                var logEntry = new LogEntry
+                {
+                    Timestamp = DateTime.Now,
+                    JobName = "Encryption",
+                    SourcePath = filePath,
+                    DestinationPath = "N/A",
+                    FileSize = 0,
+                    TransferTime = 0,
+                    EncryptionTime = encryptionTime
+                };
+
+                string jsonEntry = FormatLogEntry(logEntry);
+
+                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error logging encryption details: {ex.Message}");
+            }
+        }
 
         public void UpdateJobStatus(string jobName, JobState status, float progress)
         {
             try
             {
-          
                 Dictionary<string, JobStatus> statuses = new Dictionary<string, JobStatus>();
                 if (File.Exists(_statusLogPath))
                 {
@@ -109,12 +126,10 @@ namespace EasySave.Model
                     }
                     catch
                     {
-              
                         statuses = new Dictionary<string, JobStatus>();
                     }
                 }
 
-           
                 statuses[jobName] = new JobStatus
                 {
                     State = status.ToString(),
@@ -122,7 +137,6 @@ namespace EasySave.Model
                     LastUpdated = DateTime.Now
                 };
 
-              
                 string updatedJson = JsonSerializer.Serialize(statuses, new JsonSerializerOptions
                 {
                     WriteIndented = true
@@ -135,19 +149,16 @@ namespace EasySave.Model
             }
         }
 
-       
         public string GetDailyLogPath()
         {
             return _dailyLogPath;
         }
 
-   
         public string GetStatusLogPath()
         {
             return _statusLogPath;
         }
 
-       
         private string FormatLogEntry(LogEntry entry)
         {
             return JsonSerializer.Serialize(entry, new JsonSerializerOptions
@@ -156,18 +167,15 @@ namespace EasySave.Model
             });
         }
 
-
         private void EnsureLogExists()
         {
             try
             {
-               
                 if (!File.Exists(_dailyLogPath))
                 {
                     File.WriteAllText(_dailyLogPath, "");
                 }
 
-             
                 if (!File.Exists(_statusLogPath))
                 {
                     File.WriteAllText(_statusLogPath, "{}");
@@ -179,29 +187,23 @@ namespace EasySave.Model
             }
         }
 
-  
         private string ToUncPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return path;
 
-           
             if (path.StartsWith(@"\\"))
                 return path;
- 
-  
-            
+
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return path;
 
-      
             try
             {
                 string root = Path.GetPathRoot(path);
                 if (string.IsNullOrEmpty(root))
                     return path;
 
-               
                 var sb = new System.Text.StringBuilder(512);
                 int size = sb.Capacity;
                 int result = WNetGetConnection(root.TrimEnd('\\'), sb, ref size);
@@ -214,7 +216,6 @@ namespace EasySave.Model
             }
             catch
             {
-              
             }
             return path;
         }
@@ -225,7 +226,6 @@ namespace EasySave.Model
             [MarshalAs(UnmanagedType.LPTStr)] System.Text.StringBuilder remoteName,
             ref int length);
 
-     
         public class LogEntry
         {
             public DateTime Timestamp { get; set; }
@@ -234,10 +234,10 @@ namespace EasySave.Model
             public string DestinationPath { get; set; }
             public long FileSize { get; set; }
             public long TransferTime { get; set; }
+            public long EncryptionTime { get; set; }
             public string ErrorMessage { get; set; }
         }
 
-    
         public class JobStatus
         {
             public string State { get; set; }

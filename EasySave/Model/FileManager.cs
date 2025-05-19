@@ -2,75 +2,81 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-
+    
 namespace EasySave.Model
 {
-
     public class FileManager
     {
-       
+        private readonly CryptoSoftManager _cryptoSoftManager;
+        private readonly ConfigManager _configManager;
+
+        public FileManager(CryptoSoftManager cryptoSoftManager, ConfigManager configManager)
+        {
+            _cryptoSoftManager = cryptoSoftManager;
+            _configManager = configManager;
+        }
+
         public long CopyFile(string sourcePath, string destinationPath, Logger logger = null, string jobName = null)
         {
             try
             {
-              
                 string destinationDirectory = Path.GetDirectoryName(destinationPath);
                 if (!Directory.Exists(destinationDirectory))
                 {
                     Directory.CreateDirectory(destinationDirectory);
                 }
 
-             
                 var fileInfo = new FileInfo(sourcePath);
                 long fileSize = fileInfo.Length;
 
-               
+                long encryptionTime = 0;
                 var stopWatch = System.Diagnostics.Stopwatch.StartNew();
-                File.Copy(sourcePath, destinationPath, true);
+
+                if (ShouldEncrypt(sourcePath))
+                {
+                    encryptionTime = _cryptoSoftManager.EncryptFile(sourcePath, destinationPath);
+                }
+                else
+                {
+                    File.Copy(sourcePath, destinationPath, true);
+                }
+
                 stopWatch.Stop();
                 long transferTime = stopWatch.ElapsedMilliseconds;
 
-               
                 if (logger != null && !string.IsNullOrEmpty(jobName))
                 {
-                    logger.LogAction(jobName, sourcePath, destinationPath, fileSize, transferTime);
+                    logger.LogAction(jobName, sourcePath, destinationPath, fileSize, transferTime, encryptionTime);
                 }
 
                 return transferTime;
             }
             catch (Exception ex)
             {
-                
                 if (logger != null && !string.IsNullOrEmpty(jobName))
                 {
-                    logger.LogAction(jobName, sourcePath, destinationPath, 0, -1);
+                    logger.LogAction(jobName, sourcePath, destinationPath, 0, -1, -1);
                 }
                 return -1;
             }
         }
 
-  
- 
         public long CopyDirectory(string sourceDir, string targetDir, bool fullBackup,
             Func<float, bool> onProgressUpdate = null, Logger logger = null, string jobName = null)
         {
             try
             {
-               
                 if (!Directory.Exists(targetDir))
                 {
                     Directory.CreateDirectory(targetDir);
                 }
 
-               
                 var sourceFiles = GetDirectoryFiles(sourceDir);
                 if (sourceFiles.Count == 0)
                 {
-                    return 0; 
+                    return 0;
                 }
 
-                
                 List<string> filesToCopy = sourceFiles;
                 if (!fullBackup && Directory.Exists(targetDir))
                 {
@@ -79,20 +85,17 @@ namespace EasySave.Model
 
                 if (filesToCopy.Count == 0)
                 {
-                    return 0; 
+                    return 0;
                 }
 
-               
                 int totalFiles = filesToCopy.Count;
                 int copiedFiles = 0;
 
                 foreach (string sourceFile in filesToCopy)
                 {
-                  
                     string relativePath = sourceFile.Substring(sourceDir.Length + 1);
                     string targetFile = Path.Combine(targetDir, relativePath);
 
-                    
                     long result = CopyFile(sourceFile, targetFile, logger, jobName);
 
                     if (result >= 0)
@@ -111,13 +114,19 @@ namespace EasySave.Model
 
                 return copiedFiles;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return -1;
             }
         }
 
-        
+        public bool ShouldEncrypt(string filePath)
+        {
+            var extensions = _configManager.GetExtensionsToEncrypt();
+            string ext = Path.GetExtension(filePath)?.ToLowerInvariant();
+            return extensions.Any(e => e.ToLowerInvariant() == ext);
+        }
+
         public List<string> GetDirectoryFiles(string directoryPath)
         {
             try
@@ -138,18 +147,15 @@ namespace EasySave.Model
 
             foreach (string sourceFile in sourceFiles)
             {
-               
                 string relativePath = sourceFile.Substring(sourceDir.Length + 1);
                 string targetFile = Path.Combine(targetDir, relativePath);
 
-                
                 if (!File.Exists(targetFile))
                 {
                     filesToCopy.Add(sourceFile);
                     continue;
                 }
 
-                
                 DateTime sourceLastModified = File.GetLastWriteTime(sourceFile);
                 DateTime targetLastModified = File.GetLastWriteTime(targetFile);
 
