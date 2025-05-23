@@ -6,38 +6,48 @@
         xmlns:local="clr-namespace:EasySaveV2"
         mc:Ignorable="d"
         Title="CreateBackupJob" Height="450" Width="800">
+    <Window.Resources>
+        <Style x:Key="BlackButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Black"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="BorderBrush" Value="Black"/>
+        </Style>
+    </Window.Resources>
     <Grid Name ="formulaire_creation" Margin ="10">
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="26*" />
+            <RowDefinition Height="201*" />
+            <RowDefinition Height="187*"/>
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition />
+            <ColumnDefinition Width="17*" />
+            <ColumnDefinition Width="9*"/>
+            <ColumnDefinition Width="26*" />
         </Grid.ColumnDefinitions>
 
-        <Label Content="CREATE A NEW JOB" VerticalAlignment="Center" HorizontalAlignment="Center" />
-        <Label Content="Name:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-        <TextBox Name="NameTextBox" Grid.Row="1" Grid.Column="1" Margin="5,5,5,0" VerticalAlignment="Top"/>
+        <Label Content="CREATE A NEW JOB" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="138,0,0,0"/>
+        <Label Content="Name:" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,26,0,0" Grid.RowSpan="2"/>
+        <TextBox Name="NameTextBox" Grid.Row="1" Grid.Column="2" Margin="5,5,5,0" VerticalAlignment="Top"/>
         <Label Content="CopyType:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,69,0,0"/>
-        <ComboBox Name="TypeComboBox" Grid.Row="1" Grid.Column="1" Margin="5,71,5,0" VerticalAlignment="Top">
+        <ComboBox Name="TypeComboBox" Grid.Row="1" Grid.Column="2" Margin="5,71,5,0" VerticalAlignment="Top">
             <ComboBoxItem Content="Complete"/>
             <ComboBoxItem Content="Differential"/>
         </ComboBox>
         <Label Content="HandlingType:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,35,0,0"/>
-        <ComboBox Name="HandlingTypeComboBox" Grid.Row="1" Grid.Column="1" Margin="5,35,5,0" VerticalAlignment="Top">
+        <ComboBox Name="HandlingTypeComboBox" Grid.Row="1" Grid.Column="2" Margin="5,35,5,0" VerticalAlignment="Top">
             <ComboBoxItem Content="Complete"/>
             <ComboBoxItem Content="Sequential"/>
         </ComboBox>
-        <Label Content="Source package" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Margin="0,97,0,0"/>
-        <TextBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Margin="5,103,0,0"/>
-        <Button Name="SourcePackageButton" Content="Browse" Grid.Row="1" Grid.Column="1" Margin="0,103,0,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Click="SourcePackageButton_Click" Height="18" BorderThickness="1,1,1,1" SnapsToDevicePixels="True" ClipToBounds="True"/>
-        <Label Content="Destination package" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Margin="0,133,0,0"/>
-        <TextBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Margin="5,139,0,0"/>
-        <Button Name="DestinationPackageButton" Content="Browse" Grid.Row="1" Grid.Column="1" Margin="0,139,0,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Click="DestinationPackageButton_Click" Height="18"/>
-        <Button Name="CreateJobButton" Content="Create Job" Grid.Row="1" Grid.Column="0" Margin="5,363,0,5" HorizontalAlignment="Left" Width="75" Click="CreateJobButton_Click"/>
-        <Button Name="CancelButton" Content="Cancel" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="CancelButton_Click"/>
+        <Label Content="Source package" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Margin="0,97,0,0" Grid.ColumnSpan="2"/>
+        <TextBox Grid.Row="1" Grid.Column="2" VerticalAlignment="Top" Margin="5,103,5,0"/>
+        <Button Name="SourcePackageButton" Style="{StaticResource BlackButtonStyle}" Content="Browse" Grid.Row="1" Grid.Column="2" Margin="0,103,5,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="70" Click="SourcePackageButton_Click" Height="18" BorderThickness="1,1,1,1" SnapsToDevicePixels="True" ClipToBounds="True"/>
+        <Label Content="Destination package" Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Margin="0,133,0,0" Grid.ColumnSpan="2"/>
+        <TextBox Grid.Row="1" Grid.Column="2" VerticalAlignment="Top" Margin="5,139,5,0"/>
+        <Button Name="DestinationPackageButton" Style="{StaticResource BlackButtonStyle}" Content="Browse" Grid.Row="1" Grid.Column="2" Margin="0,139,5,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="70" Click="DestinationPackageButton_Click" Height="18"/>
+        <Button Name="CreateJobButton" Style="{StaticResource BlackButtonStyle}" Content="Create Job" Grid.Row="2" Grid.Column="0" Margin="5,162,0,5" HorizontalAlignment="Left" Width="75" Click="CreateJobButton_Click"/>
+        <Button Name="CancelButton" Style="{StaticResource BlackButtonStyle}" Content="Cancel" Grid.Row="2" Grid.Column="2" Margin="0,0,0,5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="CancelButton_Click"/>
     </Grid>
 </Window>
