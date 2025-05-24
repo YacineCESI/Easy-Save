@@ -56,83 +56,15 @@ namespace EasySave.Model
         public bool Execute()
         {
             if (_fileManager == null)
-            {
-                throw new InvalidOperationException("FileManager not set. Call SetFileManager before execution.");
-            }
+                throw new InvalidOperationException("FileManager must be set before executing the job.");
 
-            try
-            {
-                State = JobState.RUNNING;
-                _isPaused = false;
-                _isStopped = false;
-                Progress = 0.0f;
-
-                var logger = new Logger();
-                logger.UpdateJobStatus(Name, State, Progress);
-
-                if (!Directory.Exists(TargetDirectory))
-                {
-                    Directory.CreateDirectory(TargetDirectory);
-                }
-
-                // Check if business software is running
-                var businessSoftwareManager = new BusinessSoftwareManager();
-                if (businessSoftwareManager.IsBusinessSoftwareRunning(BlockedProcesses))
-                {
-                    State = JobState.FAILED;
-                    logger.LogError(Name, "Blocked by business software process");
-                    logger.UpdateJobStatus(Name, State, Progress);
-                    return false;
-                }
-
-                bool isFullBackup = (Type == BackupType.FULL);
-                long result = _fileManager.CopyDirectory(
-                    SourceDirectory,
-                    TargetDirectory,
-                    ExtensionsToEncrypt,
-                    EncryptFiles,
-                    onProgressUpdate: (progress) =>
-                    {
-                        Progress = progress;
-                        logger.UpdateJobStatus(Name, State, Progress);
-
-                        if (_isPaused)
-                        {
-                            while (_isPaused && !_isStopped)
-                            {
-                                System.Threading.Thread.Sleep(500);
-                            }
-                        }
-                        return !_isStopped;
-                    });
-
-                LastRunTime = DateTime.Now;
-
-                if (_isStopped)
-                {
-                    State = JobState.PENDING;
-                }
-                else
-                {
-                    State = (result >= 0) ? JobState.COMPLETED : JobState.FAILED;
-                    Progress = (result >= 0) ? 100.0f : Progress;
-                }
-
-                logger.UpdateJobStatus(Name, State, Progress);
-
-                return State == JobState.COMPLETED;
-            }
-            catch (Exception ex)
-            {
-                State = JobState.FAILED;
-                Progress = 0.0f;
-
-                var logger = new Logger();
-                logger.UpdateJobStatus(Name, State, Progress);
-                logger.LogError(Name, ex.Message);
-
-                return false;
-            }
+            // Use EncryptFiles and ExtensionsToEncrypt for this job
+            return _fileManager.CopyDirectory(
+                SourceDirectory,
+                TargetDirectory,
+                ExtensionsToEncrypt,
+                EncryptFiles
+            ) >= 0;
         }
 
         public void Pause()

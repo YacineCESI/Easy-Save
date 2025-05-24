@@ -100,8 +100,11 @@
                 <!-- Encryption Settings -->
                 <Expander Header="Encryption Settings" Margin="0,10,0,10" IsExpanded="True">
                     <StackPanel Margin="10">
-                        <CheckBox Content="Encrypt Files" 
-                                  IsChecked="{Binding EncryptFiles}" 
+                        <CheckBox x:Name="EncryptFilesCheckBox"
+                                  Content="Encrypt Files"
+                                  IsChecked="{Binding EncryptFiles, Mode=TwoWay}"
+                                  Checked="EncryptFilesCheckBox_Checked"
+                                  Unchecked="EncryptFilesCheckBox_Checked"
                                   Margin="0,5"/>
                         <TextBlock Text="File Extensions to Encrypt" Style="{StaticResource LabelStyle}"/>
                         <Grid>

@@ -131,8 +131,6 @@ namespace EasySave.ViewModel
             }
         }
 
-        public ObservableCollection<string> ExtensionsToEncrypt { get; set; }
-
         public bool EncryptFiles
         {
             get => _encryptFiles;
@@ -145,6 +143,8 @@ namespace EasySave.ViewModel
                 }
             }
         }
+
+        public ObservableCollection<string> ExtensionsToEncrypt { get; set; }
 
         public ObservableCollection<string> BlockedProcesses { get; set; }
 

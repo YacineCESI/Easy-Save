@@ -72,8 +72,19 @@ namespace EasySaveV2
             }
         }
 
+        private void EncryptFilesCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+            var checkBox = sender as CheckBox;
+            if (checkBox != null)
+            {
+                _viewModel.EncryptFiles = checkBox.IsChecked == true;
+            }
+        }
+
         // Use OpenFileDialog to let user pick a file, then use its directory as the folder
         private void BrowseSourceButton_Click(object sender, RoutedEventArgs e)
+        {
         {
             var dialog = new OpenFileDialog
             {

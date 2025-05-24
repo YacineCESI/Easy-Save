@@ -59,7 +59,7 @@ namespace EasySave.Model
                         // Rename original to temp
                         File.Move(destination, tempPath, true);
                         
-                        // Encrypt the file
+                        // Encrypt the file using internal CryptoSoftManager (now in-process)
                         encryptionTime = _cryptoSoftManager.EncryptFile(tempPath, destination);
                         
                         // Log encryption details
@@ -100,43 +100,37 @@ namespace EasySave.Model
 
             try
             {
-                // Create the target directory if it doesn't exist
                 Directory.CreateDirectory(targetDir);
-                
-                // Get all files in the source directory
+
                 string[] files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
                 int totalFiles = files.Length;
                 int processedFiles = 0;
                 long totalTime = 0;
-                
-                // Process each file
+
                 foreach (string file in files)
                 {
-                    // Calculate relative path
                     string relativePath = file.Substring(sourceDir.Length + 1);
                     string targetPath = Path.Combine(targetDir, relativePath);
-                    
+
                     // Determine if this file should be encrypted
                     bool encryptFile = encrypt && ShouldEncrypt(file, extensionsToEncrypt);
-                    
-                    // Copy and potentially encrypt the file
+
                     long fileTime = CopyFile(file, targetPath, encryptFile);
-                    
+
                     if (fileTime >= 0)
                     {
                         totalTime += fileTime;
                     }
-                    
-                    // Update progress and check if operation should continue
+
                     processedFiles++;
                     float progress = (float)processedFiles / totalFiles * 100;
-                    
+
                     if (onProgressUpdate != null && !onProgressUpdate(progress))
                     {
                         return -3; // Operation was canceled
                     }
                 }
-                
+
                 return totalTime;
             }
             catch (Exception ex)
@@ -152,19 +146,19 @@ namespace EasySave.Model
             {
                 return false;
             }
-            
+
             string extension = Path.GetExtension(filePath);
             if (string.IsNullOrEmpty(extension))
             {
                 return false;
             }
-            
+
             // Remove the dot from the extension if present
             if (extension.StartsWith("."))
             {
                 extension = extension.Substring(1);
             }
-            
+
             return extensionsToEncrypt.Any(ext => ext.Equals(extension, StringComparison.OrdinalIgnoreCase));
         }
     }

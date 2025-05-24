@@ -24,9 +24,9 @@ namespace EasySave.Model
 
             // Initialize FileManager with a new CryptoSoftManager
             _fileManager = new FileManager(
-                new CryptoSoftManager(_configManager.GetCryptoSoftPath()),
-                _logger
-            );
+                new CryptoSoftManager(), // Removed the argument as CryptoSoftManager does not accept any parameters
+                 _logger
+);
 
             _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
