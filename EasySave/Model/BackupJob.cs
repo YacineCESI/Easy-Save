@@ -17,13 +17,14 @@ namespace EasySave.Model
         public List<string> ExtensionsToEncrypt { get; set; }
         public bool EncryptFiles { get; set; }
         public List<string> BlockedProcesses { get; set; }
+        public LogFormat LogFormat { get; set; }
 
         private FileManager _fileManager;
         private bool _isPaused;
         private bool _isStopped;
         private readonly Logger _logger;
 
-        public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type, bool encryptFiles = false, List<string> extensionsToEncrypt = null, List<string> blockedProcesses = null)
+        public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type, bool encryptFiles = false, List<string> extensionsToEncrypt = null, List<string> blockedProcesses = null, LogFormat logFormat = LogFormat.JSON)
         {
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("Job name cannot be empty", nameof(name));
@@ -44,21 +45,23 @@ namespace EasySave.Model
             EncryptFiles = encryptFiles;
             ExtensionsToEncrypt = extensionsToEncrypt ?? new List<string>();
             BlockedProcesses = blockedProcesses ?? new List<string>();
+            LogFormat = logFormat;
 
             _isPaused = false;
             _isStopped = false;
             _logger = new Logger();
             
-            // Log job creation
-            _logger.UpdateJobStatus(Name, State, Progress);
+            // Log job creation with the selected format
+            _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
             _logger.LogAction(Name, 
                               SourceDirectory, 
                               TargetDirectory, 
                               0, // No files transferred yet
                               0, // No transfer time yet
-                              0  // No encryption time yet
+                               0, // No encryption time yet
+                              LogFormat
             );
-            _logger.LogError(Name, $"Job created - Type: {Type}, EncryptFiles: {EncryptFiles}, Extensions to encrypt: {ExtensionsToEncrypt.Count}, Blocked processes: {BlockedProcesses.Count}");
+            _logger.LogError(Name, $"Job created - Type: {Type}, EncryptFiles: {EncryptFiles}, Extensions to encrypt: {ExtensionsToEncrypt.Count}, Blocked processes: {BlockedProcesses.Count}, Format: {LogFormat}", LogFormat);
         }
 
         public void SetFileManager(FileManager fileManager)
@@ -76,16 +79,17 @@ namespace EasySave.Model
             State = JobState.RUNNING;
             LastRunTime = DateTime.Now;
             
-            // Log job launch
-            _logger.UpdateJobStatus(Name, State, Progress);
+            // Log job launch with the selected format
+            _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
             _logger.LogAction(Name, 
                               SourceDirectory, 
                               TargetDirectory, 
                               0, // No files transferred yet
                               0, // No transfer time yet
-                              0  // No encryption time yet
+                              0, // No encryption time yet
+                              LogFormat
             );
-            _logger.LogError(Name, $"Job launched - Type: {Type}, Source: {SourceDirectory}, Target: {TargetDirectory}");
+            _logger.LogError(Name, $"Job launched - Type: {Type}, Source: {SourceDirectory}, Target: {TargetDirectory}", LogFormat);
             
             // Define progress update callback
             bool progressCallback(float progress)
@@ -93,8 +97,8 @@ namespace EasySave.Model
                 // Update the job's progress
                 Progress = progress;
                 
-                // Log the progress update
-                _logger.UpdateJobStatus(Name, State, Progress);
+                // Log the progress update with the selected format
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
                 
                 // Check if the operation should be cancelled
                 if (_isPaused || _isStopped)
@@ -136,17 +140,17 @@ namespace EasySave.Model
                     State = JobState.FAILED;
                 }
                 
-                // Final status update
-                _logger.UpdateJobStatus(Name, State, Progress);
-                _logger.LogError(Name, $"Job execution completed - Final state: {State}, Progress: {Progress}%");
+                // Final status update with the selected format
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, $"Job execution completed - Final state: {State}, Progress: {Progress}%", LogFormat);
                 
                 return result >= 0;
             }
             catch (Exception ex)
             {
                 State = JobState.FAILED;
-                _logger.LogError(Name, $"Error executing job: {ex.Message}");
-                _logger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, $"Error executing job: {ex.Message}", LogFormat);
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
                 return false;
             }
         }
@@ -157,8 +161,8 @@ namespace EasySave.Model
             {
                 _isPaused = true;
                 State = JobState.PAUSED;
-                _logger.UpdateJobStatus(Name, State, Progress);
-                _logger.LogError(Name, "Job paused");
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, "Job paused", LogFormat);
             }
         }
 
@@ -168,8 +172,8 @@ namespace EasySave.Model
             {
                 _isPaused = false;
                 State = JobState.RUNNING;
-                _logger.UpdateJobStatus(Name, State, Progress);
-                _logger.LogError(Name, "Job resumed");
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, "Job resumed", LogFormat);
             }
         }
 
@@ -180,8 +184,8 @@ namespace EasySave.Model
                 _isStopped = true;
                 _isPaused = false;
                 State = JobState.PENDING;
-                _logger.UpdateJobStatus(Name, State, Progress);
-                _logger.LogError(Name, "Job stopped");
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, "Job stopped", LogFormat);
             }
         }
 

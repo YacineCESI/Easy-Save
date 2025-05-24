@@ -92,6 +92,10 @@
                 <TextBlock DockPanel.Dock="Top" Text="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=selectJob}" Style="{StaticResource HeaderTextStyle}"/>
 
                 <Grid DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
@@ -99,28 +103,42 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRunJob}" 
+                    <!-- First row of buttons -->
+                    <Button Grid.Row="0" Grid.Column="0" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRunJob}" 
                             Click="RunJob_Click"
                             Style="{StaticResource ActionButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-                    <Button Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=pauseJob}" 
+                    <Button Grid.Row="0" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStarted}" 
                             Command="{Binding PauseJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-                    <Button Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
+                    <Button Grid.Row="0" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
                             Command="{Binding ResumeJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-                    <Button Grid.Column="3" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRemoveJob}" 
+                    <Button Grid.Row="0" Grid.Column="3" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRemoveJob}" 
                             Command="{Binding RemoveJobCommand}"
                             CommandParameter="{Binding SelectedJob.Name}"
                             Style="{StaticResource ButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+                    
+                    <!-- Second row of buttons (new) -->
+                    <Button Grid.Row="1" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStopped}" 
+                            Command="{Binding StopJobCommand}"
+                            CommandParameter="{Binding SelectedJob}"
+                            Style="{StaticResource ButtonStyle}"
+                            Margin="5,10,5,0"
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+
+                    <Button Grid.Row="1" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuExit}" 
+                            Click="ExitButton_Click"
+                            Style="{StaticResource ButtonStyle}"
+                            Margin="5,10,5,0"/>
                 </Grid>
 
                 <!-- Job Details Form -->

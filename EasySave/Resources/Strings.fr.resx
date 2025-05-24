@@ -121,7 +121,7 @@
     <value>EasySave Logiciel de Sauvegarde</value>
   </data>
   <data name="menuCreateJob" xml:space="preserve">
-    <value>Créer un nouveau travail de sauvegarde</value>
+    <value>Créer Job</value>
   </data>
   <data name="menuListJobs" xml:space="preserve">
     <value>Lister les travaux de sauvegarde</value>
@@ -163,7 +163,7 @@
     <value>Sélectionnez un travail par numéro :</value>
   </data>
   <data name="jobStarted" xml:space="preserve">
-    <value>Travail de sauvegarde démarré...</value>
+    <value>Reprendre</value>
   </data>
   <data name="jobCompleted" xml:space="preserve">
     <value>Travail de sauvegarde terminé avec succès.</value>
@@ -196,7 +196,7 @@
     <value>Pause</value>
   </data>
   <data name="jobPaused" xml:space="preserve">
-    <value>Travail suspendu. Appuyez sur n'importe quelle touche pour reprendre...</value>
+    <value>Pause</value>
   </data>
   <data name="jobStopped" xml:space="preserve">
     <value>Travail arrêté.</value>

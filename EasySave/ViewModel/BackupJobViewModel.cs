@@ -18,6 +18,7 @@ namespace EasySave.ViewModel
         private DateTime _lastRunTime;
         private float _progress;
         private bool _encryptFiles;
+        private LogFormat _logFormat;
 
         public BackupJobViewModel()
         {
@@ -36,6 +37,7 @@ namespace EasySave.ViewModel
             _lastRunTime = job.LastRunTime;
             _progress = job.Progress;
             _encryptFiles = job.EncryptFiles;
+            _logFormat = job.LogFormat;
             ExtensionsToEncrypt = new ObservableCollection<string>(job.ExtensionsToEncrypt ?? new System.Collections.Generic.List<string>());
             BlockedProcesses = new ObservableCollection<string>(job.BlockedProcesses ?? new System.Collections.Generic.List<string>());
         }
@@ -142,6 +144,19 @@ namespace EasySave.ViewModel
             }
         }
 
+        public LogFormat LogFormat
+        {
+            get => _logFormat;
+            set
+            {
+                if (_logFormat != value)
+                {
+                    _logFormat = value;
+                    OnPropertyChanged(nameof(LogFormat));
+                }
+            }
+        }
+
         public ObservableCollection<string> ExtensionsToEncrypt { get; set; }
 
         public ObservableCollection<string> BlockedProcesses { get; set; }
@@ -165,7 +180,8 @@ namespace EasySave.ViewModel
                 type: Type,
                 encryptFiles: EncryptFiles,
                 extensionsToEncrypt: new System.Collections.Generic.List<string>(ExtensionsToEncrypt),
-                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses)
+                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses),
+                logFormat: LogFormat
             );
         }
 
@@ -185,7 +201,8 @@ namespace EasySave.ViewModel
                 type: Type,
                 encryptFiles: EncryptFiles,
                 extensionsToEncrypt: new System.Collections.Generic.List<string>(ExtensionsToEncrypt),
-                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses)
+                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses),
+                logFormat: LogFormat
             );
 
             return backupManager.AddBackupJob(job);
