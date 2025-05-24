@@ -1,5 +1,4 @@
-﻿// MainWindow.xaml.cs
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -28,32 +27,29 @@ namespace EasySaveV2
         {
             InitializeComponent();
 
-            // Initialize required managers for the application
+           
             var configManager = new ConfigManager();
             var languageManager = new LanguageManager();
             var businessSoftwareManager = new BusinessSoftwareManager();
             var backupManager = new BackupManager();
 
-            // Create the view model
+        
             _viewModel = new MainViewModel(
                 backupManager,
                 languageManager,
                 businessSoftwareManager,
                 configManager);
 
-            // Set the DataContext for data binding
             DataContext = _viewModel;
 
-            // Subscribe to the SelectionChanged event of the JobsListBox
             JobsListBox.SelectionChanged += JobsListBox_SelectionChanged;
 
-            // Subscribe to the LanguageChanged event
+      
             _viewModel.LanguageChanged += ViewModel_LanguageChanged;
 
-            // Subscribe to blocked process event
             _viewModel.BlockedProcessesDetected += ViewModel_BlockedProcessesDetected;
 
-            // Set initial window title
+      
             this.Title = _viewModel.GetLocalizedString("appTitle");
         }
 
@@ -129,7 +125,7 @@ namespace EasySaveV2
 
         private void RunAllJobs_Click(object sender, RoutedEventArgs e)
         {
-            // Use the enhanced ViewModel logic, which will raise the event if blocked
+           
             ExecuteAllJobs();
         }
 
@@ -143,7 +139,7 @@ namespace EasySaveV2
         /// </summary>
         private void ExecuteSelectedJob()
         {
-            // Stop any existing timer
+        
             StopProgressUpdates();
 
             if (_viewModel.SelectedJob == null)
@@ -151,7 +147,6 @@ namespace EasySaveV2
 
             string jobName = _viewModel.SelectedJob.Name;
 
-            // Execute the job
             _viewModel.ExecuteSelectedJob();
 
             // Set up the timer to update the UI
@@ -164,25 +159,23 @@ namespace EasySaveV2
             {
                 try
                 {
-                    // Get the current job from the backup manager to ensure we have the latest progress
                     BackupJob job = _viewModel.BackupManager.GetBackupJob(jobName);
 
                     if (job != null)
                     {
-                        // Update the view model's selected job with the latest data
+                 
                         _viewModel.SelectedJob.Progress = job.Progress;
                         _viewModel.SelectedJob.State = job.State;
                         _viewModel.SelectedJob.LastRunTime = job.LastRunTime;
 
-                        // Trigger property changed notifications to update bindings
+              
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.Progress));
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.State));
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.LastRunTime));
 
-                        // Force UI update for the selected job
+                   
                         _viewModel.OnPropertyChanged("SelectedJob");
 
-                        // Check if the job has completed or failed
                         if (job.State == JobState.COMPLETED ||
                             job.State == JobState.FAILED ||
                             job.State == JobState.PENDING)
@@ -236,7 +229,7 @@ namespace EasySaveV2
                             jobVM.State = job.State;
                             jobVM.LastRunTime = job.LastRunTime;
 
-                            // Force property changed for Progress to ensure UI updates
+                          
                             jobVM.OnPropertyChanged(nameof(jobVM.Progress));
                             jobVM.OnPropertyChanged(nameof(jobVM.State));
                             jobVM.OnPropertyChanged(nameof(jobVM.LastRunTime));
@@ -249,7 +242,7 @@ namespace EasySaveV2
                         }
                     }
 
-                    // Force UI refresh if needed
+                    // Force UI refresh if needed (to avoid UI not updating)
                     _viewModel.OnPropertyChanged("BackupJobs");
                     
                     // If SelectedJob is one of the currently running jobs, also update its specific UI

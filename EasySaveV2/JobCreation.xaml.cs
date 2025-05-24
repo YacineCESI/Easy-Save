@@ -22,7 +22,7 @@ namespace EasySaveV2
         public JobCreation(MainViewModel mainViewModel)
         {
             _mainViewModel = mainViewModel;
-            _viewModel = new BackupJobViewModel(); // Now this does NOT create a BackupJob
+            _viewModel = new BackupJobViewModel(); 
             InitializeComponent();
             InitializeViewModel();
         }
@@ -32,16 +32,16 @@ namespace EasySaveV2
         /// </summary>
         private void InitializeViewModel()
         {
-            // Only initialize the ViewModel, do NOT create a BackupJob instance here!
+            // Only initialize the ViewModel, do NOT create a BackupJob instance here! (because it was initializing the BackupJob with default values empty so it was impossible to open the create job window)
             _viewModel = new BackupJobViewModel();
 
-            // Ensure collections are initialized
+           
             if (_viewModel.ExtensionsToEncrypt == null)
                 _viewModel.ExtensionsToEncrypt = new System.Collections.ObjectModel.ObservableCollection<string>();
             if (_viewModel.BlockedProcesses == null)
                 _viewModel.BlockedProcesses = new System.Collections.ObjectModel.ObservableCollection<string>();
 
-            // Set data context for bindings
+       
             DataContext = _viewModel;
         }
 
@@ -50,23 +50,23 @@ namespace EasySaveV2
         /// </summary>
         private void BackupTypeCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (_viewModel == null) return; // Prevent null reference
+            if (_viewModel == null) return;
             
             var checkbox = sender as CheckBox;
             if (checkbox == null) return;
             
-            // Set the backup type based on the selected checkbox
+         
             if (checkbox.Tag.ToString() == "FULL")
             {
                 _viewModel.Type = BackupType.FULL;
-                // Uncheck the other checkbox
+              
                 if (DifferentialBackupCheckBox != null)
                     DifferentialBackupCheckBox.IsChecked = false;
             }
             else
             {
                 _viewModel.Type = BackupType.DIFFERENTIAL;
-                // Uncheck the other checkbox
+            
                 if (FullBackupCheckBox != null)
                     FullBackupCheckBox.IsChecked = false;
             }
@@ -82,7 +82,6 @@ namespace EasySaveV2
             }
         }
 
-        // Use OpenFileDialog to let user pick a file, then use its directory as the folder
         private void BrowseSourceButton_Click(object sender, RoutedEventArgs e)
         {
             {
@@ -122,7 +121,7 @@ namespace EasySaveV2
 
         private void SaveJob()
         {
-            // Modified to just display a message without creating the job
+        
             MessageBox.Show("This is a view-only form. No job will be created.",
                 "Information", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
@@ -135,7 +134,7 @@ namespace EasySaveV2
             {
                 string extension = ExtensionTextBox.Text.Trim();
 
-                // Remove the dot if present
+              
                 if (extension.StartsWith("."))
                 {
                     extension = extension.Substring(1);
@@ -166,10 +165,10 @@ namespace EasySaveV2
 
         private void ProcessTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Update UI state based on text content
+          
             AddProcessButton.IsEnabled = !string.IsNullOrWhiteSpace(ProcessTextBox.Text);
             
-            // Reset validation visuals if any
+         
             var textBox = sender as TextBox;
             if (textBox != null)
             {
@@ -184,13 +183,13 @@ namespace EasySaveV2
             {
                 string process = ProcessTextBox.Text.Trim();
 
-                // Remove .exe extension if the user added it
+        
                 if (process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
                     process = process.Substring(0, process.Length - 4);
                 }
 
-                // Validate: no special characters allowed in process names
+           
                 if (!IsValidProcessName(process))
                 {
                     MessageBox.Show("Process name contains invalid characters. Please enter a valid process name.", 
@@ -202,7 +201,7 @@ namespace EasySaveV2
                 {
                     _viewModel.BlockedProcesses.Add(process);
                     ProcessTextBox.Clear();
-                    // Update UI states
+       
                     AddProcessButton.IsEnabled = false;
                 }
             }
@@ -210,7 +209,7 @@ namespace EasySaveV2
 
         private bool IsValidProcessName(string processName)
         {
-            // Simple validation to prevent injection or invalid process names
+        
             return !string.IsNullOrEmpty(processName) && 
                    !processName.Contains('/') && !processName.Contains('\\') &&
                    !processName.Contains(':') && !processName.Contains('*') &&
@@ -232,14 +231,14 @@ namespace EasySaveV2
                     _viewModel.BlockedProcesses.Remove(item.ToString());
                 }
                 
-                // Update UI state
+                
                 RemoveProcessButton.IsEnabled = ProcessesListBox.SelectedItems.Count > 0;
             }
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            // Validate required fields before proceeding
+           
             if (string.IsNullOrWhiteSpace(_viewModel.Name))
             {
                 MessageBox.Show("Job name cannot be empty.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -261,7 +260,7 @@ namespace EasySaveV2
                 return;
             }
 
-            // Create and save the BackupJob using the ViewModel and BackupManager
+          
             bool success = _viewModel.CreateAndSaveBackupJob(_mainViewModel.BackupManager);
 
             if (success)
@@ -276,7 +275,6 @@ namespace EasySaveV2
             }
         }
 
-        // Add event handlers to reset validation visuals when user starts typing
         private void TextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             var textBox = sender as TextBox;

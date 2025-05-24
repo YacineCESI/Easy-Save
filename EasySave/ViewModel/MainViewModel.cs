@@ -48,7 +48,7 @@ namespace EasySave.ViewModel
                 {
                     _currentLanguage = value;
                     _languageManager.SwitchLanguage(value);
-                    
+
                     // Notify all string properties that they need to be updated
                     OnPropertyChanged(nameof(CurrentLanguage));
                     OnPropertyChanged(nameof(WindowTitle));
@@ -71,10 +71,10 @@ namespace EasySave.ViewModel
                     OnPropertyChanged(nameof(SelectJobMessage));
                     OnPropertyChanged(nameof(BlockedProcessesHeader));
                     OnPropertyChanged(nameof(AddProcessButtonText));
-                    
+
                     // Save the selected language to config
                     _configManager.SetLanguage(value);
-                    
+
                     // Raise the LanguageChanged event
                     LanguageChanged?.Invoke(this, EventArgs.Empty);
                 }
@@ -154,17 +154,33 @@ namespace EasySave.ViewModel
                 }
             });
 
+            // Modified RunJobCommand to check job's own blocked processes
             RunJobCommand = new RelayCommand<BackupJobViewModel>(job =>
             {
-                if (job != null && !_businessSoftwareManager.IsBusinessSoftwareRunning(new List<string>()))
-                {
-                    _backupManager.ExecuteBackupJob(job.Name);
-                }
-            });
+                if (job == null)
+                    return;
 
-            RunAllJobsCommand = new RelayCommand(ExecuteAllJobs, () =>
-                BackupJobs.Count > 0 &&
-                !_businessSoftwareManager.IsBusinessSoftwareRunning(new List<string>()));
+                // Check if any of this job's blocked processes are running
+                var blockedProcesses = job.BlockedProcesses?.ToList() ?? new List<string>();
+                var runningProcesses = _businessSoftwareManager.GetRunningBlockedProcesses(blockedProcesses);
+
+                if (runningProcesses.Count > 0)
+                {
+                    // Notify that blocked processes are running
+                    BlockedProcessesDetected?.Invoke(this, runningProcesses);
+
+                    // Stop any ongoing job with this name
+                    _backupManager.StopJob(job.Name);
+
+                    return;
+                }
+
+                _backupManager.ExecuteBackupJob(job.Name);
+            },
+            job => job != null);
+
+            // Modified RunAllJobsCommand to respect Can Execute condition
+            RunAllJobsCommand = new RelayCommand(ExecuteAllJobs, () => BackupJobs.Count > 0);
 
             RemoveJobCommand = new RelayCommand<string>(name =>
             {
@@ -190,6 +206,17 @@ namespace EasySave.ViewModel
             {
                 if (job != null)
                 {
+                    // Check for blocked processes before resuming
+                    var blockedProcesses = job.BlockedProcesses?.ToList() ?? new List<string>();
+                    var runningProcesses = _businessSoftwareManager.GetRunningBlockedProcesses(blockedProcesses);
+
+                    if (runningProcesses.Count > 0)
+                    {
+                        // Notify that blocked processes are running
+                        BlockedProcessesDetected?.Invoke(this, runningProcesses);
+                        return;
+                    }
+
                     _backupManager.ResumeJob(job.Name);
                 }
             });
@@ -225,13 +252,15 @@ namespace EasySave.ViewModel
             {
                 // Let MainWindow handle the popup
                 BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
+
+                // Stop the job if it was already running
+                _backupManager.StopJob(SelectedJob.Name);
+
                 return;
             }
 
-            if (RunJobCommand.CanExecute(SelectedJob))
-            {
-                RunJobCommand.Execute(SelectedJob);
-            }
+            // Safe to execute
+            RunJobCommand.Execute(SelectedJob);
         }
 
         /// <summary>
@@ -247,21 +276,48 @@ namespace EasySave.ViewModel
             return _businessSoftwareManager.GetRunningBlockedProcesses(allBlocked);
         }
 
+        /// <summary>
+        /// Stops all running backup jobs
+        /// </summary>
+        public void StopAllJobs()
+        {
+            foreach (var job in BackupJobs)
+            {
+                _backupManager.StopJob(job.Name);
+            }
+        }
+
         public void ExecuteAllJobs()
         {
             var runningBlockedProcesses = GetRunningBlockedProcessesForAnyJob();
             if (runningBlockedProcesses.Count > 0)
             {
+                // Notify about blocked processes
                 BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
+
+                // Stop all running jobs
+                StopAllJobs();
+
                 return;
             }
 
+            // Safe to execute all jobs
             _backupManager.ExecuteAllBackupJobs();
-            (RunAllJobsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         // Add an event to notify MainWindow of blocked processes
         public event EventHandler<List<string>> BlockedProcessesDetected;
+
+        /// <summary>
+        /// Continuously checks if any blocked processes start running during job execution
+        /// and stops jobs if necessary
+        /// </summary>
+        public void StartBlockedProcessMonitoring()
+        {
+            // This would be implemented with a background task that periodically
+            // checks for blocked processes and stops jobs if needed
+            // For simplicity in this implementation, we'll just check before execution
+        }
 
         /// <summary>
         /// Refreshes the BackupJobs collection from the BackupManager.

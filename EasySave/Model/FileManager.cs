@@ -30,49 +30,48 @@ namespace EasySave.Model
 
             try
             {
-                // Create directory if it doesn't exist
+               
                 Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 
-                // Get file info before copy
+              
                 var fileInfo = new FileInfo(source);
                 var fileSize = fileInfo.Length;
                 
-                // Start timing the transfer
+                
                 var startTime = DateTime.Now;
                 
-                // Copy the file
+                
                 File.Copy(source, destination, true);
                 
-                // Calculate transfer time in ms
+                
                 var transferTime = (long)(DateTime.Now - startTime).TotalMilliseconds;
                 
-                // Log the transfer
+               
                 _logger.LogAction(null, source, destination, fileSize, transferTime, 0);
                 
-                // If encryption is required, encrypt the file
+               
                 long encryptionTime = 0;
                 if (encrypt)
                 {
                     var tempPath = destination + ".tmp";
                     if (File.Exists(destination))
                     {
-                        // Rename original to temp
+                       
                         File.Move(destination, tempPath, true);
-                        
-                        // Encrypt the file using internal CryptoSoftManager (now in-process)
+                     
                         encryptionTime = _cryptoSoftManager.EncryptFile(tempPath, destination);
                         
-                        // Log encryption details
+                        
                         _logger.LogEncryptionDetails(destination, encryptionTime);
                         
-                        // Delete temp file if encryption successful
+                       
                         if (encryptionTime > 0 && File.Exists(tempPath))
                         {
                             File.Delete(tempPath);
                         }
                         else if (encryptionTime < 0)
                         {
-                            // If encryption failed, restore original
+                            
                             if (File.Exists(tempPath))
                             {
                                 File.Move(tempPath, destination, true);
@@ -87,7 +86,7 @@ namespace EasySave.Model
             catch (Exception ex)
             {
                 _logger.LogError(null, $"Error copying file {source} to {destination}: {ex.Message}");
-                return -2; // Error during copy
+                return -2; 
             }
         }
 
@@ -95,20 +94,20 @@ namespace EasySave.Model
         {
             if (!Directory.Exists(sourceDir))
             {
-                return -1; // Error: source directory does not exist
+                return -1; 
             }
 
             try
             {
                 Directory.CreateDirectory(targetDir);
 
-                // Get all files with their full paths
+                
                 string[] files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
                 int totalFiles = files.Length;
                 
                 if (totalFiles == 0)
                 {
-                    // No files to copy, consider it success with 100% progress
+                    
                     onProgressUpdate?.Invoke(100);
                     return 0;
                 }
@@ -121,7 +120,7 @@ namespace EasySave.Model
                     string relativePath = file.Substring(sourceDir.Length + 1);
                     string targetPath = Path.Combine(targetDir, relativePath);
 
-                    // Determine if this file should be encrypted
+                    
                     bool encryptFile = encrypt && ShouldEncrypt(file, extensionsToEncrypt);
 
                     long fileTime = CopyFile(file, targetPath, encryptFile);
@@ -134,12 +133,12 @@ namespace EasySave.Model
                     processedFiles++;
                     float progress = (float)processedFiles / totalFiles * 100;
 
-                    // Report progress back through callback
+                  
                     if (onProgressUpdate != null)
                     {
                         if (!onProgressUpdate(progress))
                         {
-                            return -3; // Operation was canceled
+                            return -3; 
                         }
                     }
                 }

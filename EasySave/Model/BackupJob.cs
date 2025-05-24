@@ -21,6 +21,7 @@ namespace EasySave.Model
         private FileManager _fileManager;
         private bool _isPaused;
         private bool _isStopped;
+        private readonly Logger _logger;
 
         public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type, bool encryptFiles = false, List<string> extensionsToEncrypt = null, List<string> blockedProcesses = null)
         {
@@ -46,6 +47,18 @@ namespace EasySave.Model
 
             _isPaused = false;
             _isStopped = false;
+            _logger = new Logger();
+            
+            // Log job creation
+            _logger.UpdateJobStatus(Name, State, Progress);
+            _logger.LogAction(Name, 
+                              SourceDirectory, 
+                              TargetDirectory, 
+                              0, // No files transferred yet
+                              0, // No transfer time yet
+                              0  // No encryption time yet
+            );
+            _logger.LogError(Name, $"Job created - Type: {Type}, EncryptFiles: {EncryptFiles}, Extensions to encrypt: {ExtensionsToEncrypt.Count}, Blocked processes: {BlockedProcesses.Count}");
         }
 
         public void SetFileManager(FileManager fileManager)
@@ -63,10 +76,17 @@ namespace EasySave.Model
             State = JobState.RUNNING;
             LastRunTime = DateTime.Now;
             
-            // Create a logger to update job status
-            var statusLogger = new Logger();
-            statusLogger.UpdateJobStatus(Name, State, Progress);
-
+            // Log job launch
+            _logger.UpdateJobStatus(Name, State, Progress);
+            _logger.LogAction(Name, 
+                              SourceDirectory, 
+                              TargetDirectory, 
+                              0, // No files transferred yet
+                              0, // No transfer time yet
+                              0  // No encryption time yet
+            );
+            _logger.LogError(Name, $"Job launched - Type: {Type}, Source: {SourceDirectory}, Target: {TargetDirectory}");
+            
             // Define progress update callback
             bool progressCallback(float progress)
             {
@@ -74,7 +94,7 @@ namespace EasySave.Model
                 Progress = progress;
                 
                 // Log the progress update
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.UpdateJobStatus(Name, State, Progress);
                 
                 // Check if the operation should be cancelled
                 if (_isPaused || _isStopped)
@@ -117,15 +137,16 @@ namespace EasySave.Model
                 }
                 
                 // Final status update
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, $"Job execution completed - Final state: {State}, Progress: {Progress}%");
                 
                 return result >= 0;
             }
             catch (Exception ex)
             {
                 State = JobState.FAILED;
-                statusLogger.LogError(Name, $"Error executing job: {ex.Message}");
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, $"Error executing job: {ex.Message}");
+                _logger.UpdateJobStatus(Name, State, Progress);
                 return false;
             }
         }
@@ -136,8 +157,8 @@ namespace EasySave.Model
             {
                 _isPaused = true;
                 State = JobState.PAUSED;
-                var statusLogger = new Logger();
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, "Job paused");
             }
         }
 
@@ -147,8 +168,8 @@ namespace EasySave.Model
             {
                 _isPaused = false;
                 State = JobState.RUNNING;
-                var statusLogger = new Logger();
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, "Job resumed");
             }
         }
 
@@ -159,8 +180,8 @@ namespace EasySave.Model
                 _isStopped = true;
                 _isPaused = false;
                 State = JobState.PENDING;
-                var statusLogger = new Logger();
-                statusLogger.UpdateJobStatus(Name, State, Progress);
+                _logger.UpdateJobStatus(Name, State, Progress);
+                _logger.LogError(Name, "Job stopped");
             }
         }
 
