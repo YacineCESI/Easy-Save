@@ -1,59 +1,45 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Runtime.InteropServices;
 using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
     public class Logger
     {
-        private string _dailyLogPath;
-        private string _statusLogPath;
+        private readonly string _logDirectory;
+        private readonly string _activityLogPath;
+        private readonly string _statusLogPath;
+        private readonly string _encryptionLogPath;
 
         public Logger()
         {
-            string baseLogDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "EasySave", "Logs");
-
-            Directory.CreateDirectory(baseLogDirectory);
-
-            string dailyLogName = $"DailyLog_{DateTime.Now:yyyy-MM-dd}.json";
-            _dailyLogPath = Path.Combine(baseLogDirectory, dailyLogName);
-
-            _statusLogPath = Path.Combine(baseLogDirectory, "Status.json");
-
-            EnsureLogExists();
-        }
-
-        public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime)
-        {
-            LogAction(jobName, sourceFile, destinationFile, fileSize, transferTime, 0);
+            _logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EasySave", "Logs");
+            Directory.CreateDirectory(_logDirectory);
+            
+            var today = DateTime.Now.ToString("yyyy-MM-dd");
+            _activityLogPath = Path.Combine(_logDirectory, $"activity_log_{today}.json");
+            _statusLogPath = Path.Combine(_logDirectory, $"status_log_{today}.json");
+            _encryptionLogPath = Path.Combine(_logDirectory, $"encryption_log_{today}.json");
         }
 
         public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime, long encryptionTime)
         {
             try
             {
-                string uncSource = ToUncPath(sourceFile);
-                string uncDestination = ToUncPath(destinationFile);
-
-                var logEntry = new LogEntry
+                var logEntry = new
                 {
-                    Timestamp = DateTime.Now,
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                     JobName = jobName,
-                    SourcePath = uncSource,
-                    DestinationPath = uncDestination,
+                    SourceFile = sourceFile,
+                    DestinationFile = destinationFile,
                     FileSize = fileSize,
                     TransferTime = transferTime,
                     EncryptionTime = encryptionTime
                 };
 
-                string jsonEntry = FormatLogEntry(logEntry);
-
-                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
+                string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+                File.AppendAllText(_activityLogPath, json + Environment.NewLine);
             }
             catch (Exception ex)
             {
@@ -61,87 +47,20 @@ namespace EasySave.Model
             }
         }
 
-        public void LogError(string jobName, string errorMessage)
-        {
-            try
-            {
-                var logEntry = new LogEntry
-                {
-                    Timestamp = DateTime.Now,
-                    JobName = jobName,
-                    SourcePath = "ERROR",
-                    DestinationPath = "ERROR",
-                    FileSize = 0,
-                    TransferTime = -1,
-                    ErrorMessage = errorMessage
-                };
-
-                string jsonEntry = FormatLogEntry(logEntry);
-
-                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error logging error: {ex.Message}");
-            }
-        }
-
-        public void LogEncryptionDetails(string filePath, long encryptionTime)
-        {
-            try
-            {
-                var logEntry = new LogEntry
-                {
-                    Timestamp = DateTime.Now,
-                    JobName = "Encryption",
-                    SourcePath = filePath,
-                    DestinationPath = "N/A",
-                    FileSize = 0,
-                    TransferTime = 0,
-                    EncryptionTime = encryptionTime
-                };
-
-                string jsonEntry = FormatLogEntry(logEntry);
-
-                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error logging encryption details: {ex.Message}");
-            }
-        }
-
         public void UpdateJobStatus(string jobName, JobState status, float progress)
         {
             try
             {
-                Dictionary<string, JobStatus> statuses = new Dictionary<string, JobStatus>();
-                if (File.Exists(_statusLogPath))
+                var statusEntry = new
                 {
-                    string json = File.ReadAllText(_statusLogPath);
-                    try
-                    {
-                        statuses = JsonSerializer.Deserialize<Dictionary<string, JobStatus>>(json) ??
-                            new Dictionary<string, JobStatus>();
-                    }
-                    catch
-                    {
-                        statuses = new Dictionary<string, JobStatus>();
-                    }
-                }
-
-                statuses[jobName] = new JobStatus
-                {
-                    State = status.ToString(),
-                    Progress = progress,
-                    LastUpdated = DateTime.Now
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    JobName = jobName,
+                    Status = status.ToString(),
+                    Progress = progress
                 };
 
-                string updatedJson = JsonSerializer.Serialize(statuses, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-                File.WriteAllText(_statusLogPath, updatedJson);
+                string json = JsonSerializer.Serialize(statusEntry, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(_statusLogPath, json);
             }
             catch (Exception ex)
             {
@@ -149,100 +68,45 @@ namespace EasySave.Model
             }
         }
 
-        public string GetDailyLogPath()
-        {
-            return _dailyLogPath;
-        }
-
-        public string GetStatusLogPath()
-        {
-            return _statusLogPath;
-        }
-
-        private string FormatLogEntry(LogEntry entry)
-        {
-            return JsonSerializer.Serialize(entry, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-        }
-
-        private void EnsureLogExists()
+        public void LogEncryptionDetails(string filePath, long encryptionTime)
         {
             try
             {
-                if (!File.Exists(_dailyLogPath))
+                var logEntry = new
                 {
-                    File.WriteAllText(_dailyLogPath, "");
-                }
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FilePath = filePath,
+                    EncryptionTime = encryptionTime,
+                    Status = encryptionTime > 0 ? "Success" : "Failed"
+                };
 
-                if (!File.Exists(_statusLogPath))
-                {
-                    File.WriteAllText(_statusLogPath, "{}");
-                }
+                string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+                File.AppendAllText(_encryptionLogPath, json + Environment.NewLine);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error ensuring logs exist: {ex.Message}");
+                Console.WriteLine($"Error logging encryption details: {ex.Message}");
             }
         }
 
-        private string ToUncPath(string path)
+        public void LogError(string jobName, string errorMessage)
         {
-            if (string.IsNullOrWhiteSpace(path))
-                return path;
-
-            if (path.StartsWith(@"\\"))
-                return path;
-
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return path;
-
             try
             {
-                string root = Path.GetPathRoot(path);
-                if (string.IsNullOrEmpty(root))
-                    return path;
-
-                var sb = new System.Text.StringBuilder(512);
-                int size = sb.Capacity;
-                int result = WNetGetConnection(root.TrimEnd('\\'), sb, ref size);
-                if (result == 0)
+                var logEntry = new
                 {
-                    string uncRoot = sb.ToString();
-                    string relativePath = path.Substring(root.Length);
-                    return Path.Combine(uncRoot, relativePath);
-                }
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    JobName = jobName,
+                    Error = errorMessage
+                };
+
+                string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+                File.AppendAllText(_activityLogPath, json + Environment.NewLine);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error logging error: {ex.Message}");
             }
-            return path;
-        }
-
-        [DllImport("mpr.dll", CharSet = CharSet.Auto)]
-        private static extern int WNetGetConnection(
-            [MarshalAs(UnmanagedType.LPTStr)] string localName,
-            [MarshalAs(UnmanagedType.LPTStr)] System.Text.StringBuilder remoteName,
-            ref int length);
-
-        public class LogEntry
-        {
-            public DateTime Timestamp { get; set; }
-            public string JobName { get; set; }
-            public string SourcePath { get; set; }
-            public string DestinationPath { get; set; }
-            public long FileSize { get; set; }
-            public long TransferTime { get; set; }
-            public long EncryptionTime { get; set; }
-            public string ErrorMessage { get; set; }
-        }
-
-        public class JobStatus
-        {
-            public string State { get; set; }
-            public float Progress { get; set; }
-            public DateTime LastUpdated { get; set; }
         }
     }
 }

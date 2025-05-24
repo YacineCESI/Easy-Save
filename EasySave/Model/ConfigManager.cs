@@ -72,15 +72,15 @@ namespace EasySave.Model
 
         public T GetSetting<T>(string key, T defaultValue = default)
         {
-            if (_settings.ContainsKey(key))
+            if (_settings.TryGetValue(key, out var value))
             {
                 try
                 {
-                    if (_settings[key] is JsonElement element)
+                    if (value is JsonElement element)
                     {
                         return (T)Convert.ChangeType(element.GetRawText().Trim('"'), typeof(T));
                     }
-                    return (T)_settings[key];
+                    return (T)value;
                 }
                 catch
                 {
@@ -127,22 +127,26 @@ namespace EasySave.Model
 
         public List<string> GetExtensionsToEncrypt()
         {
-            return GetSetting<List<string>>("ExtensionsToEncrypt", new List<string>());
+            if (_settings.TryGetValue("ExtensionsToEncrypt", out var value) && value is List<string> list)
+                return list;
+            return new List<string>();
         }
 
         public void SetExtensionsToEncrypt(List<string> extensions)
         {
-            SetSetting("ExtensionsToEncrypt", extensions);
+            _settings["ExtensionsToEncrypt"] = extensions;
         }
 
         public string GetCryptoSoftPath()
         {
-            return GetSetting<string>("CryptoSoftPath", string.Empty);
+            if (_settings.TryGetValue("CryptoSoftPath", out var value) && value is string path)
+                return path;
+            return string.Empty;
         }
 
         public void SetCryptoSoftPath(string path)
         {
-            SetSetting("CryptoSoftPath", path);
+            _settings["CryptoSoftPath"] = path;
         }
     }
 }

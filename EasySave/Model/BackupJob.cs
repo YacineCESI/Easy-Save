@@ -1,30 +1,29 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
-  
     public class BackupJob
     {
-        public string Name { get; private set; }
-        public string SourceDirectory { get; private set; }
-        public string TargetDirectory { get; private set; }
-        public BackupType Type { get; private set; }
-        public JobState State { get; private set; }
-        public DateTime LastRunTime { get; private set; }
-        public float Progress { get; private set; }
+        public string Name { get; set; }
+        public string SourceDirectory { get; set; }
+        public string TargetDirectory { get; set; }
+        public BackupType Type { get; set; }
+        public JobState State { get; set; }
+        public DateTime LastRunTime { get; set; }
+        public float Progress { get; set; }
+        public List<string> ExtensionsToEncrypt { get; set; }
+        public bool EncryptFiles { get; set; }
+        public List<string> BlockedProcesses { get; set; }
 
         private FileManager _fileManager;
-
- 
         private bool _isPaused;
         private bool _isStopped;
 
-       
-        public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type)
+        public BackupJob(string name, string sourceDirectory, string targetDirectory, BackupType type, bool encryptFiles = false, List<string> extensionsToEncrypt = null, List<string> blockedProcesses = null)
         {
-           
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("Job name cannot be empty", nameof(name));
 
@@ -39,48 +38,64 @@ namespace EasySave.Model
             TargetDirectory = targetDirectory;
             Type = type;
             State = JobState.PENDING;
+            LastRunTime = DateTime.MinValue;
             Progress = 0.0f;
+            EncryptFiles = encryptFiles;
+            ExtensionsToEncrypt = extensionsToEncrypt ?? new List<string>();
+            BlockedProcesses = blockedProcesses ?? new List<string>();
 
-           
-            //_fileManager = new FileManager();
-
-            
             _isPaused = false;
             _isStopped = false;
         }
 
-   
+        public void SetFileManager(FileManager fileManager)
+        {
+            _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
+        }
+
         public bool Execute()
         {
+            if (_fileManager == null)
+            {
+                throw new InvalidOperationException("FileManager not set. Call SetFileManager before execution.");
+            }
+
             try
             {
-                
                 State = JobState.RUNNING;
                 _isPaused = false;
                 _isStopped = false;
                 Progress = 0.0f;
 
-               
                 var logger = new Logger();
                 logger.UpdateJobStatus(Name, State, Progress);
 
-               
                 if (!Directory.Exists(TargetDirectory))
                 {
                     Directory.CreateDirectory(TargetDirectory);
                 }
 
-               
+                // Check if business software is running
+                var businessSoftwareManager = new BusinessSoftwareManager();
+                if (businessSoftwareManager.IsBusinessSoftwareRunning(BlockedProcesses))
+                {
+                    State = JobState.FAILED;
+                    logger.LogError(Name, "Blocked by business software process");
+                    logger.UpdateJobStatus(Name, State, Progress);
+                    return false;
+                }
+
                 bool isFullBackup = (Type == BackupType.FULL);
                 long result = _fileManager.CopyDirectory(
                     SourceDirectory,
                     TargetDirectory,
-                    isFullBackup,
-                    onProgressUpdate: (progress) => {
+                    ExtensionsToEncrypt,
+                    EncryptFiles,
+                    onProgressUpdate: (progress) =>
+                    {
                         Progress = progress;
                         logger.UpdateJobStatus(Name, State, Progress);
 
-                        
                         if (_isPaused)
                         {
                             while (_isPaused && !_isStopped)
@@ -88,13 +103,9 @@ namespace EasySave.Model
                                 System.Threading.Thread.Sleep(500);
                             }
                         }
-                        return !_isStopped; 
-                    },
-                    logger: logger, 
-                    jobName: Name
-                );
+                        return !_isStopped;
+                    });
 
-      
                 LastRunTime = DateTime.Now;
 
                 if (_isStopped)
@@ -116,7 +127,6 @@ namespace EasySave.Model
                 State = JobState.FAILED;
                 Progress = 0.0f;
 
-           
                 var logger = new Logger();
                 logger.UpdateJobStatus(Name, State, Progress);
                 logger.LogError(Name, ex.Message);
@@ -125,7 +135,6 @@ namespace EasySave.Model
             }
         }
 
-     
         public void Pause()
         {
             if (State == JobState.RUNNING)
@@ -137,7 +146,6 @@ namespace EasySave.Model
             }
         }
 
-      
         public void Resume()
         {
             if (State == JobState.PAUSED)
@@ -172,4 +180,3 @@ namespace EasySave.Model
         }
     }
 }
-    

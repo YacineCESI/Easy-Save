@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -6,19 +7,39 @@ namespace EasySave.Model
 {
     public class BusinessSoftwareManager
     {
-        private List<string> blockedProcesses = new();
-
-        public bool IsBusinessSoftwareRunning()
+        public bool IsBusinessSoftwareRunning(List<string> blockedProcesses)
         {
-            var running = Process.GetProcesses().Select(p => p.ProcessName.ToLowerInvariant());
-            return blockedProcesses.Any(bp => running.Contains(bp.ToLowerInvariant()));
-        }
+            if (blockedProcesses == null || blockedProcesses.Count == 0)
+            {
+                return false;
+            }
 
-        public List<string> GetBlockedProcesses() => blockedProcesses;
-
-        public void SetBlockedProcesses(List<string> processes)
-        {
-            blockedProcesses = processes;
+            try
+            {
+                // Get all running processes
+                Process[] runningProcesses = Process.GetProcesses();
+                
+                // Check if any blocked process is running
+                foreach (string blockedProcess in blockedProcesses)
+                {
+                    if (string.IsNullOrWhiteSpace(blockedProcess))
+                    {
+                        continue;
+                    }
+                    
+                    if (runningProcesses.Any(p => p.ProcessName.Equals(blockedProcess, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            catch (Exception)
+            {
+                // If there's an error accessing process info, be safe and assume blocked
+                return true;
+            }
         }
     }
 }

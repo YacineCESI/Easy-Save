@@ -8,60 +8,96 @@ namespace EasySave.Model
     {
         private string _cryptoSoftPath;
 
-        public CryptoSoftManager(string cryptoSoftPath)
+        public CryptoSoftManager(string cryptoSoftPath = null)
         {
-            _cryptoSoftPath = cryptoSoftPath;
+            _cryptoSoftPath = cryptoSoftPath ?? @"C:\Program Files\CryptoSoft\CryptoSoft.exe";
         }
 
         public long EncryptFile(string source, string destination)
         {
+            if (!File.Exists(_cryptoSoftPath))
+            {
+                return -1; // CryptoSoft executable not found
+            }
+
+            if (!File.Exists(source))
+            {
+                return -2; // Source file not found
+            }
+
             try
             {
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = _cryptoSoftPath,
                     Arguments = $"\"{source}\" \"{destination}\"",
+                    RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                var stopwatch = Stopwatch.StartNew();
+                var watch = Stopwatch.StartNew();
                 using (var process = Process.Start(startInfo))
                 {
                     process.WaitForExit();
-                    stopwatch.Stop();
+                    watch.Stop();
+                    
+                    // If exit code is 0, encryption was successful
                     if (process.ExitCode == 0)
-                        return stopwatch.ElapsedMilliseconds;
+                    {
+                        return watch.ElapsedMilliseconds;
+                    }
                     else
-                        return -process.ExitCode; // Negative error code
+                    {
+                        return -3 - process.ExitCode; // Return negative value based on exit code
+                    }
                 }
             }
-            catch
+            catch (Exception)
             {
-                return -9999; // Arbitrary error code for failure
+                return -10; // General encryption error
             }
         }
 
         public long GetEncryptionTime(string filePath)
         {
-            // This method can be used to retrieve the last encryption time if needed.
-            // For now, encryption time is returned by EncryptFile.
-            return 0;
-        }
+            if (!File.Exists(_cryptoSoftPath))
+            {
+                return -1; // CryptoSoft executable not found
+            }
 
-        public string GetCryptoSoftPath() => _cryptoSoftPath;
+            if (!File.Exists(filePath))
+            {
+                return -2; // Source file not found
+            }
 
-        public void SetCryptoSoftPath(string path) => _cryptoSoftPath = path;
-
-        public bool TestCryptoSoftConnection()
-        {
             try
             {
-                return File.Exists(_cryptoSoftPath);
+                var fileInfo = new FileInfo(filePath);
+                var fileSize = fileInfo.Length;
+                
+                // Simple estimation: 10MB per second
+                const long bytesPerSecond = 10 * 1024 * 1024;
+                
+                // Convert to milliseconds and add a bit of overhead
+                return (long)(fileSize / (double)bytesPerSecond * 1000) + 100;
             }
-            catch
+            catch (Exception)
             {
-                return false;
+                return -10; // Error estimating encryption time
+            }
+        }
+
+        public string GetCryptoSoftPath()
+        {
+            return _cryptoSoftPath;
+        }
+
+        public void SetCryptoSoftPath(string path)
+        {
+            if (!string.IsNullOrEmpty(path))
+            {
+                _cryptoSoftPath = path;
             }
         }
     }

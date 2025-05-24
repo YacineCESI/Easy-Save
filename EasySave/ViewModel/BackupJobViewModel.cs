@@ -1,39 +1,53 @@
 using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows.Input;
 using EasySave.Model;
-using System.ComponentModel;
+using EasySave.Model.Enums;
 
 namespace EasySave.ViewModel
 {
     public class BackupJobViewModel : INotifyPropertyChanged
     {
-        private BackupJob backupJob;
+        // Store properties directly in the ViewModel
+        private string _name;
+        private string _sourceDirectory;
+        private string _targetDirectory;
+        private BackupType _type;
+        private JobState _state;
+        private DateTime _lastRunTime;
+        private float _progress;
+        private bool _encryptFiles;
 
-        // Parameterless constructor for serialization/binding frameworks
         public BackupJobViewModel()
         {
-            // Initialize with default values to avoid null reference errors
-            backupJob = new BackupJob(
-                name: string.Empty,
-                sourceDirectory: string.Empty,
-                targetDirectory: string.Empty,
-                type: BackupType.FULL
-            );
+            ExtensionsToEncrypt = new ObservableCollection<string>();
+            BlockedProcesses = new ObservableCollection<string>();
         }
 
         public BackupJobViewModel(BackupJob job)
         {
-            backupJob = job ?? throw new ArgumentNullException(nameof(job));
+            if (job == null) throw new ArgumentNullException(nameof(job));
+            _name = job.Name;
+            _sourceDirectory = job.SourceDirectory;
+            _targetDirectory = job.TargetDirectory;
+            _type = job.Type;
+            _state = job.State;
+            _lastRunTime = job.LastRunTime;
+            _progress = job.Progress;
+            _encryptFiles = job.EncryptFiles;
+            ExtensionsToEncrypt = new ObservableCollection<string>(job.ExtensionsToEncrypt ?? new System.Collections.Generic.List<string>());
+            BlockedProcesses = new ObservableCollection<string>(job.BlockedProcesses ?? new System.Collections.Generic.List<string>());
         }
 
         public string Name
         {
-            get => backupJob.Name;
+            get => _name;
             set
             {
-                if (backupJob.Name != value)
+                if (_name != value)
                 {
-                    backupJob.Name = value;
+                    _name = value;
                     OnPropertyChanged(nameof(Name));
                 }
             }
@@ -41,12 +55,12 @@ namespace EasySave.ViewModel
 
         public string SourceDirectory
         {
-            get => backupJob.SourceDirectory;
+            get => _sourceDirectory;
             set
             {
-                if (backupJob.SourceDirectory != value)
+                if (_sourceDirectory != value)
                 {
-                    backupJob.SourceDirectory = value;
+                    _sourceDirectory = value;
                     OnPropertyChanged(nameof(SourceDirectory));
                 }
             }
@@ -54,12 +68,12 @@ namespace EasySave.ViewModel
 
         public string TargetDirectory
         {
-            get => backupJob.TargetDirectory;
+            get => _targetDirectory;
             set
             {
-                if (backupJob.TargetDirectory != value)
+                if (_targetDirectory != value)
                 {
-                    backupJob.TargetDirectory = value;
+                    _targetDirectory = value;
                     OnPropertyChanged(nameof(TargetDirectory));
                 }
             }
@@ -67,12 +81,12 @@ namespace EasySave.ViewModel
 
         public BackupType Type
         {
-            get => backupJob.Type;
+            get => _type;
             set
             {
-                if (backupJob.Type != value)
+                if (_type != value)
                 {
-                    backupJob.Type = value;
+                    _type = value;
                     OnPropertyChanged(nameof(Type));
                 }
             }
@@ -80,12 +94,12 @@ namespace EasySave.ViewModel
 
         public JobState State
         {
-            get => backupJob.State;
+            get => _state;
             set
             {
-                if (backupJob.State != value)
+                if (_state != value)
                 {
-                    backupJob.State = value;
+                    _state = value;
                     OnPropertyChanged(nameof(State));
                 }
             }
@@ -93,12 +107,12 @@ namespace EasySave.ViewModel
 
         public DateTime LastRunTime
         {
-            get => backupJob.LastRunTime;
+            get => _lastRunTime;
             set
             {
-                if (backupJob.LastRunTime != value)
+                if (_lastRunTime != value)
                 {
-                    backupJob.LastRunTime = value;
+                    _lastRunTime = value;
                     OnPropertyChanged(nameof(LastRunTime));
                 }
             }
@@ -106,17 +120,35 @@ namespace EasySave.ViewModel
 
         public float Progress
         {
-            get => backupJob.Progress;
+            get => _progress;
             set
             {
-                if (Math.Abs(backupJob.Progress - value) > 0.001f)
+                if (_progress != value)
                 {
-                    backupJob.Progress = value;
+                    _progress = value;
                     OnPropertyChanged(nameof(Progress));
                 }
             }
         }
 
+        public ObservableCollection<string> ExtensionsToEncrypt { get; set; }
+
+        public bool EncryptFiles
+        {
+            get => _encryptFiles;
+            set
+            {
+                if (_encryptFiles != value)
+                {
+                    _encryptFiles = value;
+                    OnPropertyChanged(nameof(EncryptFiles));
+                }
+            }
+        }
+
+        public ObservableCollection<string> BlockedProcesses { get; set; }
+
+        // Commands
         public ICommand SaveCommand { get; set; }
         public ICommand BrowseSourceCommand { get; set; }
         public ICommand BrowseTargetCommand { get; set; }
@@ -124,5 +156,41 @@ namespace EasySave.ViewModel
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        // Helper to create a BackupJob from the ViewModel's properties
+        public BackupJob ToBackupJob()
+        {
+            return new BackupJob(
+                name: Name,
+                sourceDirectory: SourceDirectory,
+                targetDirectory: TargetDirectory,
+                type: Type,
+                encryptFiles: EncryptFiles,
+                extensionsToEncrypt: new System.Collections.Generic.List<string>(ExtensionsToEncrypt),
+                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses)
+            );
+        }
+
+        /// <summary>
+        /// Creates a BackupJob from the ViewModel's properties and adds it to the BackupManager.
+        /// Returns true if the job was added successfully, false otherwise.
+        /// </summary>
+        public bool CreateAndSaveBackupJob(BackupManager backupManager)
+        {
+            if (backupManager == null)
+                throw new ArgumentNullException(nameof(backupManager));
+
+            var job = new BackupJob(
+                name: Name,
+                sourceDirectory: SourceDirectory,
+                targetDirectory: TargetDirectory,
+                type: Type,
+                encryptFiles: EncryptFiles,
+                extensionsToEncrypt: new System.Collections.Generic.List<string>(ExtensionsToEncrypt),
+                blockedProcesses: new System.Collections.Generic.List<string>(BlockedProcesses)
+            );
+
+            return backupManager.AddBackupJob(job);
+        }
     }
 }
