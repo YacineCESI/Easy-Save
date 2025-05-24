@@ -102,8 +102,17 @@ namespace EasySave.Model
             {
                 Directory.CreateDirectory(targetDir);
 
+                // Get all files with their full paths
                 string[] files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
                 int totalFiles = files.Length;
+                
+                if (totalFiles == 0)
+                {
+                    // No files to copy, consider it success with 100% progress
+                    onProgressUpdate?.Invoke(100);
+                    return 0;
+                }
+                
                 int processedFiles = 0;
                 long totalTime = 0;
 
@@ -125,9 +134,13 @@ namespace EasySave.Model
                     processedFiles++;
                     float progress = (float)processedFiles / totalFiles * 100;
 
-                    if (onProgressUpdate != null && !onProgressUpdate(progress))
+                    // Report progress back through callback
+                    if (onProgressUpdate != null)
                     {
-                        return -3; // Operation was canceled
+                        if (!onProgressUpdate(progress))
+                        {
+                            return -3; // Operation was canceled
+                        }
                     }
                 }
 

@@ -85,16 +85,17 @@ namespace EasySaveV2
         // Use OpenFileDialog to let user pick a file, then use its directory as the folder
         private void BrowseSourceButton_Click(object sender, RoutedEventArgs e)
         {
-        {
-            var dialog = new OpenFileDialog
             {
-                Title = "Select a file in the source directory",
-                CheckFileExists = true,
-                CheckPathExists = true
-            };
-            if (dialog.ShowDialog() == true)
-            {
-                _viewModel.SourceDirectory = Path.GetDirectoryName(dialog.FileName);
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Select a file in the source directory",
+                    CheckFileExists = true,
+                    CheckPathExists = true
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    _viewModel.SourceDirectory = Path.GetDirectoryName(dialog.FileName);
+                }
             }
         }
 
@@ -163,18 +164,59 @@ namespace EasySaveV2
             }
         }
 
+        private void ProcessTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Update UI state based on text content
+            AddProcessButton.IsEnabled = !string.IsNullOrWhiteSpace(ProcessTextBox.Text);
+            
+            // Reset validation visuals if any
+            var textBox = sender as TextBox;
+            if (textBox != null)
+            {
+                textBox.BorderBrush = new SolidColorBrush(SystemColors.ControlDarkBrush.Color);
+                textBox.ToolTip = null;
+            }
+        }
+
         private void AddProcessButton_Click(object sender, RoutedEventArgs e)
         {
             if (!string.IsNullOrWhiteSpace(ProcessTextBox.Text))
             {
                 string process = ProcessTextBox.Text.Trim();
 
+                // Remove .exe extension if the user added it
+                if (process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    process = process.Substring(0, process.Length - 4);
+                }
+
+                // Validate: no special characters allowed in process names
+                if (!IsValidProcessName(process))
+                {
+                    MessageBox.Show("Process name contains invalid characters. Please enter a valid process name.", 
+                        "Invalid Process Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
                 if (!_viewModel.BlockedProcesses.Contains(process))
                 {
                     _viewModel.BlockedProcesses.Add(process);
                     ProcessTextBox.Clear();
+                    // Update UI states
+                    AddProcessButton.IsEnabled = false;
                 }
             }
+        }
+
+        private bool IsValidProcessName(string processName)
+        {
+            // Simple validation to prevent injection or invalid process names
+            return !string.IsNullOrEmpty(processName) && 
+                   !processName.Contains('/') && !processName.Contains('\\') &&
+                   !processName.Contains(':') && !processName.Contains('*') &&
+                   !processName.Contains('?') && !processName.Contains('"') &&
+                   !processName.Contains('<') && !processName.Contains('>') &&
+                   !processName.Contains('|');
         }
 
         private void RemoveProcessButton_Click(object sender, RoutedEventArgs e)
@@ -189,6 +231,9 @@ namespace EasySaveV2
                 {
                     _viewModel.BlockedProcesses.Remove(item.ToString());
                 }
+                
+                // Update UI state
+                RemoveProcessButton.IsEnabled = ProcessesListBox.SelectedItems.Count > 0;
             }
         }
 

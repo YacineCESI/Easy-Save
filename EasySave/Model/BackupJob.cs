@@ -58,13 +58,76 @@ namespace EasySave.Model
             if (_fileManager == null)
                 throw new InvalidOperationException("FileManager must be set before executing the job.");
 
-            // Use EncryptFiles and ExtensionsToEncrypt for this job
-            return _fileManager.CopyDirectory(
-                SourceDirectory,
-                TargetDirectory,
-                ExtensionsToEncrypt,
-                EncryptFiles
-            ) >= 0;
+            // Reset progress and update state
+            Progress = 0;
+            State = JobState.RUNNING;
+            LastRunTime = DateTime.Now;
+            
+            // Create a logger to update job status
+            var statusLogger = new Logger();
+            statusLogger.UpdateJobStatus(Name, State, Progress);
+
+            // Define progress update callback
+            bool progressCallback(float progress)
+            {
+                // Update the job's progress
+                Progress = progress;
+                
+                // Log the progress update
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+                
+                // Check if the operation should be cancelled
+                if (_isPaused || _isStopped)
+                {
+                    return false;
+                }
+                
+                return true;
+            }
+
+            try
+            {
+                // Use EncryptFiles and ExtensionsToEncrypt for this job
+                long result = _fileManager.CopyDirectory(
+                    SourceDirectory,
+                    TargetDirectory,
+                    ExtensionsToEncrypt,
+                    EncryptFiles,
+                    progressCallback
+                );
+                
+                // Update state based on result
+                if (result >= 0 && !_isStopped)
+                {
+                    State = JobState.COMPLETED;
+                    Progress = 100.0f; // Ensure 100% on completion
+                }
+                else if (_isPaused)
+                {
+                    State = JobState.PAUSED;
+                }
+                else if (_isStopped)
+                {
+                    State = JobState.PENDING;
+                    Progress = 0.0f;
+                }
+                else
+                {
+                    State = JobState.FAILED;
+                }
+                
+                // Final status update
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+                
+                return result >= 0;
+            }
+            catch (Exception ex)
+            {
+                State = JobState.FAILED;
+                statusLogger.LogError(Name, $"Error executing job: {ex.Message}");
+                statusLogger.UpdateJobStatus(Name, State, Progress);
+                return false;
+            }
         }
 
         public void Pause()

@@ -123,11 +123,9 @@ namespace EasySave.ViewModel
             get => _progress;
             set
             {
-                if (_progress != value)
-                {
-                    _progress = value;
-                    OnPropertyChanged(nameof(Progress));
-                }
+                // Always raise OnPropertyChanged, even if value is the same, to force UI update
+                _progress = value;
+                OnPropertyChanged(nameof(Progress));
             }
         }
 
@@ -154,7 +152,7 @@ namespace EasySave.ViewModel
         public ICommand BrowseTargetCommand { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) =>
+        public void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         // Helper to create a BackupJob from the ViewModel's properties
@@ -192,5 +190,49 @@ namespace EasySave.ViewModel
 
             return backupManager.AddBackupJob(job);
         }
+
+        /// <summary>
+        /// Adds a blocked process to the list if it doesn't already exist
+        /// </summary>
+        /// <param name="processName">Name of the process to block</param>
+        /// <returns>True if added, false if already exists</returns>
+        public bool AddBlockedProcess(string processName)
+        {
+            if (string.IsNullOrWhiteSpace(processName))
+                return false;
+                
+            string trimmedName = processName.Trim();
+            if (BlockedProcesses.Contains(trimmedName))
+                return false;
+                
+            BlockedProcesses.Add(trimmedName);
+            OnPropertyChanged(nameof(BlockedProcesses));
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a blocked process from the list
+        /// </summary>
+        /// <param name="processName">Name of the process to remove</param>
+        /// <returns>True if removed, false if not found</returns>
+        public bool RemoveBlockedProcess(string processName)
+        {
+            if (string.IsNullOrWhiteSpace(processName))
+                return false;
+                
+            bool result = BlockedProcesses.Remove(processName.Trim());
+            if (result)
+                OnPropertyChanged(nameof(BlockedProcesses));
+            return result;
+        }
+
+        /// <summary>
+        /// Checks if this job has any blocked processes defined
+        /// </summary>
+        public bool HasBlockedProcesses => BlockedProcesses != null && BlockedProcesses.Count > 0;
+
+
+
     }
+
 }

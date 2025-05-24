@@ -11,6 +11,8 @@ using EasySave.ViewModel;
 using EasySaveV2.Converters;
 using System.Windows.Media;
 using System.ComponentModel;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace EasySaveV2
 {
@@ -44,10 +46,13 @@ namespace EasySaveV2
 
             // Subscribe to the SelectionChanged event of the JobsListBox
             JobsListBox.SelectionChanged += JobsListBox_SelectionChanged;
-            
+
             // Subscribe to the LanguageChanged event
             _viewModel.LanguageChanged += ViewModel_LanguageChanged;
-            
+
+            // Subscribe to blocked process event
+            _viewModel.BlockedProcessesDetected += ViewModel_BlockedProcessesDetected;
+
             // Set initial window title
             this.Title = _viewModel.GetLocalizedString("appTitle");
         }
@@ -56,13 +61,13 @@ namespace EasySaveV2
         {
             // Force refresh the entire UI when language changes
             // This is necessary because some bindings might not update automatically
-            
+
             // Update window title directly
             this.Title = _viewModel.GetLocalizedString("appTitle");
-            
+
             // Force all bindings to update
             RefreshAllBindings(this);
-            
+
             // Show feedback to the user
             string languageChanged = _viewModel.GetLocalizedString("languageChanged");
             string appTitle = _viewModel.GetLocalizedString("appTitle");
@@ -100,7 +105,7 @@ namespace EasySaveV2
                 _viewModel.RunJobCommand.Execute(_viewModel.SelectedJob);
             }
         }
-            
+
         private void CreateJob_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -124,30 +129,17 @@ namespace EasySaveV2
 
         private void RunAllJobs_Click(object sender, RoutedEventArgs e)
         {
-            // Trigger execution of all backup jobs via BackupManager
-            bool allSuccess = _viewModel.BackupManager.ExecuteAllBackupJobs();
-
-            // Optionally, refresh the job list to update their states
-            _viewModel.RefreshBackupJobs();
-
-            if (allSuccess)
-            {
-                MessageBox.Show("All backup jobs executed successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show("Some backup jobs may have failed.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            // Use the enhanced ViewModel logic, which will raise the event if blocked
+            ExecuteAllJobs();
         }
 
         private void RunJob_Click(object sender, RoutedEventArgs e)
         {
-            // Call the modified method to execute the selected job with progress updates
             ExecuteSelectedJob();
         }
 
         /// <summary>
-        /// Executes the selected job and sets up a timer to update the progress bar in real-time
+        /// Executes the selected job and sets up a timer to update the progress bar and job data in real-time
         /// </summary>
         private void ExecuteSelectedJob()
         {
@@ -157,100 +149,130 @@ namespace EasySaveV2
             if (_viewModel.SelectedJob == null)
                 return;
 
-            // Get the name of the selected job for later reference
             string jobName = _viewModel.SelectedJob.Name;
-            
-            // Execute the job through the view model (this starts the job asynchronously)
+
+            // Execute the job
             _viewModel.ExecuteSelectedJob();
-            
-            // Set up a timer to update the progress
+
+            // Set up the timer to update the UI
             _progressUpdateTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(100) // Update every 100ms
+                Interval = TimeSpan.FromMilliseconds(100)
             };
-            
+
             _progressUpdateTimer.Tick += (s, e) =>
             {
-                // Get the current job from the backup manager to ensure we have the latest progress
-                BackupJob job = _viewModel.BackupManager.GetBackupJob(jobName);
-                
-                if (job != null)
+                try
                 {
-                    // Update the view model's selected job with the latest progress
-                    _viewModel.SelectedJob.Progress = job.Progress;
-                    
-                    // Check if the job has completed or failed
-                    if (job.GetState() == JobState.COMPLETED || 
-                        job.GetState() == JobState.FAILED || 
-                        job.GetState() == JobState.PENDING)
+                    // Get the current job from the backup manager to ensure we have the latest progress
+                    BackupJob job = _viewModel.BackupManager.GetBackupJob(jobName);
+
+                    if (job != null)
                     {
-                        // Update state in view model
+                        // Update the view model's selected job with the latest data
+                        _viewModel.SelectedJob.Progress = job.Progress;
                         _viewModel.SelectedJob.State = job.State;
-                        
-                        // Stop the timer as the job is no longer running
+                        _viewModel.SelectedJob.LastRunTime = job.LastRunTime;
+
+                        // Trigger property changed notifications to update bindings
+                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.Progress));
+                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.State));
+                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.LastRunTime));
+
+                        // Force UI update for the selected job
+                        _viewModel.OnPropertyChanged("SelectedJob");
+
+                        // Check if the job has completed or failed
+                        if (job.State == JobState.COMPLETED ||
+                            job.State == JobState.FAILED ||
+                            job.State == JobState.PENDING)
+                        {
+                            StopProgressUpdates();
+                        }
+                    }
+                    else
+                    {
                         StopProgressUpdates();
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // If the job no longer exists, stop updates
+                    // Log any exceptions that occur during UI updates
+                    Console.WriteLine($"Error updating job progress: {ex.Message}");
                     StopProgressUpdates();
                 }
             };
-            
-            // Start the timer
+
             _progressUpdateTimer.Start();
         }
 
         /// <summary>
-        /// Executes all backup jobs and sets up timers to update their progress
+        /// Executes all backup jobs and sets up timers to update their progress and data
         /// </summary>
         private void ExecuteAllJobs()
         {
-            // Stop any existing timer
             StopProgressUpdates();
-            
-            // Execute all jobs through the view model
+
             _viewModel.ExecuteAllJobs();
-            
-            // Set up a timer to update the progress of all jobs
+
             _progressUpdateTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(200) // Update every 200ms
+                Interval = TimeSpan.FromMilliseconds(200)
             };
-            
+
             _progressUpdateTimer.Tick += (s, e) =>
             {
-                // Update all job statuses from the backup manager
-                foreach (var jobVM in _viewModel.BackupJobs)
+                try
                 {
-                    BackupJob job = _viewModel.BackupManager.GetBackupJob(jobVM.Name);
+                    bool allJobsCompleted = true;
                     
-                    if (job != null)
+                    foreach (var jobVM in _viewModel.BackupJobs)
                     {
-                        // Update the job's progress in the view model
-                        jobVM.Progress = job.Progress;
-                        jobVM.State = job.State;
+                        BackupJob job = _viewModel.BackupManager.GetBackupJob(jobVM.Name);
+
+                        if (job != null)
+                        {
+                            jobVM.Progress = job.Progress;
+                            jobVM.State = job.State;
+                            jobVM.LastRunTime = job.LastRunTime;
+
+                            // Force property changed for Progress to ensure UI updates
+                            jobVM.OnPropertyChanged(nameof(jobVM.Progress));
+                            jobVM.OnPropertyChanged(nameof(jobVM.State));
+                            jobVM.OnPropertyChanged(nameof(jobVM.LastRunTime));
+                            
+                            // Check if this job is still running
+                            if (job.State == JobState.RUNNING || job.State == JobState.PAUSED)
+                            {
+                                allJobsCompleted = false;
+                            }
+                        }
+                    }
+
+                    // Force UI refresh if needed
+                    _viewModel.OnPropertyChanged("BackupJobs");
+                    
+                    // If SelectedJob is one of the currently running jobs, also update its specific UI
+                    if (_viewModel.SelectedJob != null)
+                    {
+                        _viewModel.OnPropertyChanged("SelectedJob");
+                    }
+
+                    if (allJobsCompleted)
+                    {
+                        StopProgressUpdates();
                     }
                 }
-                
-                // Check if all jobs are completed or not running
-                bool allJobsCompleted = _viewModel.BackupJobs.All(j => 
-                    j.State == JobState.COMPLETED || 
-                    j.State == JobState.FAILED || 
-                    j.State == JobState.PENDING);
-                    
-                if (allJobsCompleted)
+                catch (Exception ex)
                 {
-                    // All jobs are done, stop the update timer
+                    Console.WriteLine($"Error updating job progress: {ex.Message}");
                     StopProgressUpdates();
                 }
             };
-            
-            // Start the timer
+
             _progressUpdateTimer.Start();
         }
-        
+
         /// <summary>
         /// Stops the progress update timer if it's running
         /// </summary>
@@ -262,7 +284,21 @@ namespace EasySaveV2
                 _progressUpdateTimer = null;
             }
         }
-        
+
+        /// <summary>
+        /// Show a popup if a backup job is blocked due to running processes
+        /// </summary>
+        private void ViewModel_BlockedProcessesDetected(object sender, List<string> runningBlockedProcesses)
+        {
+            if (runningBlockedProcesses != null && runningBlockedProcesses.Count > 0)
+            {
+                string processes = string.Join(", ", runningBlockedProcesses);
+                string message = $"Cannot run backup job(s) because the following blocked processes are running: {processes}. " +
+                                 "Please close these applications before running the backup.";
+                MessageBox.Show(message, "Blocked Processes Running", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         /// <summary>
         /// Clean up when the window is closed
         /// </summary>
@@ -273,11 +309,9 @@ namespace EasySaveV2
             {
                 _viewModel.LanguageChanged -= ViewModel_LanguageChanged;
             }
-            
+
             StopProgressUpdates();
             base.OnClosed(e);
         }
-
-       
     }
 }

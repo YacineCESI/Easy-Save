@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="clr-namespace:EasySaveV2.Converters"
         xmlns:local="clr-namespace:EasySaveV2"
         mc:Ignorable="d"
         Title="Create Backup Job" 
@@ -10,8 +11,8 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
 
-
     <Window.Resources>
+        <converters:NullToBoolConverter x:Key="BooleanConverter"/>
         <Style TargetType="TextBlock" x:Key="LabelStyle">
             <Setter Property="Margin" Value="0,5,0,2"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -137,29 +138,41 @@
                 <Expander Header="Blocked Processes" Margin="0,0,0,10" IsExpanded="True">
                     <StackPanel Margin="10">
                         <TextBlock Text="Processes that will block backup execution:" Style="{StaticResource LabelStyle}"/>
+                        <TextBlock FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#666666">
+                            Enter process names (without .exe) that should prevent backup execution when running.
+                        </TextBlock>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="ProcessTextBox" Margin="0,2,5,10" Style="{StaticResource InputStyle}"/>
+                            <TextBox x:Name="ProcessTextBox" 
+                                     Margin="0,2,5,10" 
+                                     Style="{StaticResource InputStyle}"
+                                     TextChanged="ProcessTextBox_TextChanged"/>
                             <Button Grid.Column="1" Content="Add" 
                                     x:Name="AddProcessButton"
                                     Click="AddProcessButton_Click" 
                                     Style="{StaticResource StandardButton}"
-                                    Margin="0,2,5,10"/>
+                                    Margin="0,2,5,10"
+                                    IsEnabled="{Binding ElementName=ProcessTextBox, Path=Text.Length, Converter={StaticResource BooleanConverter}}"/>
                             <Button Grid.Column="2" Content="Remove" 
                                     x:Name="RemoveProcessButton"
                                     Click="RemoveProcessButton_Click" 
                                     Style="{StaticResource StandardButton}"
-                                    Margin="0,2,0,10"/>
+                                    Margin="0,2,0,10"
+                                    IsEnabled="{Binding ElementName=ProcessesListBox, Path=SelectedItems.Count, Converter={StaticResource BooleanConverter}}"/>
                         </Grid>
                         <ListBox x:Name="ProcessesListBox" 
                                  ItemsSource="{Binding BlockedProcesses}"
                                  Height="100"
                                  SelectionMode="Extended"
                                  Margin="0,0,0,10"/>
+                        <TextBlock Text="Note: If any of these processes are running when you attempt to run the backup job, the job will be blocked until they are closed." 
+                                   TextWrapping="Wrap" 
+                                   FontStyle="Italic" 
+                                   Foreground="#666666"/>
                     </StackPanel>
                 </Expander>
             </StackPanel>
