@@ -306,5 +306,7 @@ namespace EasySaveV2
             StopProgressUpdates();
             base.OnClosed(e);
         }
+
+  
     }
 }

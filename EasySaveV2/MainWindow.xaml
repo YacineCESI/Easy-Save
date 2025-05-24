@@ -108,13 +108,13 @@
                             Command="{Binding PauseJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
-                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}" Click="Button_Click"/>
 
-                    <Button Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
+                    <Button Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStopped}" 
                             Command="{Binding ResumeJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
-                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}" Click="Button_Click"/>
 
                     <Button Grid.Column="3" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRemoveJob}" 
                             Command="{Binding RemoveJobCommand}"

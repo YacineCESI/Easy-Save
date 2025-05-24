@@ -121,7 +121,7 @@
     <value>EasySave Backup Software</value>
   </data>
   <data name="menuCreateJob" xml:space="preserve">
-    <value>Create a new backup job</value>
+    <value>Create Job</value>
   </data>
   <data name="menuListJobs" xml:space="preserve">
     <value>List backup jobs</value>
@@ -196,10 +196,10 @@
     <value>Pause</value>
   </data>
   <data name="jobPaused" xml:space="preserve">
-    <value>Job paused. Press any key to resume...</value>
+    <value>Pause</value>
   </data>
   <data name="jobStopped" xml:space="preserve">
-    <value>Job stopped.</value>
+    <value>Stop</value>
   </data>
   <data name="confirmExit" xml:space="preserve">
     <value>Are you sure you want to exit? (y/n)</value>
