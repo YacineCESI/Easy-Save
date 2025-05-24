@@ -35,13 +35,14 @@ namespace EasySaveV2
             // Only initialize the ViewModel, do NOT create a BackupJob instance here! (because it was initializing the BackupJob with default values empty so it was impossible to open the create job window)
             _viewModel = new BackupJobViewModel();
 
-           
+            // Set default log format
+            _viewModel.LogFormat = LogFormat.JSON;
+            
             if (_viewModel.ExtensionsToEncrypt == null)
                 _viewModel.ExtensionsToEncrypt = new System.Collections.ObjectModel.ObservableCollection<string>();
             if (_viewModel.BlockedProcesses == null)
                 _viewModel.BlockedProcesses = new System.Collections.ObjectModel.ObservableCollection<string>();
 
-       
             DataContext = _viewModel;
         }
 
@@ -289,6 +290,23 @@ namespace EasySaveV2
         {
             DialogResult = false;
             Close();
+        }
+
+        private void LogFormatRadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel == null) return;
+            
+            var radioButton = sender as RadioButton;
+            if (radioButton == null) return;
+            
+            if (radioButton.Name == "JsonFormatRadioButton")
+            {
+                _viewModel.LogFormat = LogFormat.JSON;
+            }
+            else if (radioButton.Name == "XamlFormatRadioButton")
+            {
+                _viewModel.LogFormat = LogFormat.XAML;
+            }
         }
     }
 }

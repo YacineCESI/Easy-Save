@@ -307,6 +307,23 @@ namespace EasySaveV2
             base.OnClosed(e);
         }
 
-  
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Ask the user to confirm before exiting
+            MessageBoxResult result = MessageBox.Show(
+                _viewModel.GetLocalizedString("confirmExit"),
+                _viewModel.GetLocalizedString("appTitle"),
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+                
+            if (result == MessageBoxResult.Yes)
+            {
+                // Stop any running jobs before closing
+                _viewModel.StopAllJobs();
+                
+                // Close the application
+                Application.Current.Shutdown();
+            }
+        }
     }
 }

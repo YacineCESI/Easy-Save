@@ -163,7 +163,7 @@
     <value>Select a job by number:</value>
   </data>
   <data name="jobStarted" xml:space="preserve">
-    <value>Backup job started...</value>
+    <value>Resume</value>
   </data>
   <data name="jobCompleted" xml:space="preserve">
     <value>Backup job completed successfully.</value>
@@ -199,10 +199,10 @@
     <value>Pause</value>
   </data>
   <data name="jobStopped" xml:space="preserve">
-    <value>Stop</value>
+    <value>Stop Job</value>
   </data>
   <data name="confirmExit" xml:space="preserve">
-    <value>Are you sure you want to exit? (y/n)</value>
+    <value>Are you sure you want to exit? Any running backup jobs will be stopped.</value>
   </data>
   <data name="menuRemoveJob" xml:space="preserve">
     <value>Remove </value>
