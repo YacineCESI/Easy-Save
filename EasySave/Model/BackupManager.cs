@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Threading;
 
 // ...existing code...
 
@@ -23,6 +24,11 @@ namespace EasySave.Model
         private readonly FileManager _fileManager;
         // Track running tasks for each job
         private readonly ConcurrentDictionary<string, Task> _runningTasks = new();
+
+        private readonly object _largeFileLock = new();
+        private volatile bool _largeFileTransferring = false;
+
+        public int BandwidthLimitKB => _configManager.BandwidthLimitKB;
 
         // Default constructor
         public BackupManager()
@@ -105,6 +111,12 @@ namespace EasySave.Model
             BackupJob job = GetBackupJob(name);
             if (job != null)
             {
+                // Get the list of files to transfer for this job
+                var filesToTransfer = job.GetFilesToTransfer(); // You may need to implement this method
+
+                // Bandwidth check
+                EnsureCanStartBackupJob(filesToTransfer);
+
                 job.SetFileManager(_fileManager);
                 
                 // Launch job in a background task
@@ -121,6 +133,17 @@ namespace EasySave.Model
 
         public bool ExecuteAllBackupJobs()
         {
+            // Gather all priority files from all jobs, using the current (ordered) priority extensions
+            var priorityExtensions = _configManager.GetPriorityExtensions();
+            var allPriorityFiles = new List<string>();
+            foreach (var job in backupJobs)
+            {
+                var files = job.GetAllFilesToBackup();
+                foreach (var ext in priorityExtensions)
+                    allPriorityFiles.AddRange(files.Where(f => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+            }
+            FileManager.RegisterPriorityFiles(allPriorityFiles);
+
             // Create a list to track all tasks
             List<Task<bool>> jobTasks = new List<Task<bool>>();
 
@@ -273,6 +296,91 @@ namespace EasySave.Model
             }
         }
 
+        private bool CanTransferLargeFile(long fileSizeBytes)
+        {
+            return fileSizeBytes <= BandwidthLimitKB * 1024 || !_largeFileTransferring;
+        }
+
+        private void MarkLargeFileTransferStart(long fileSizeBytes)
+        {
+            if (fileSizeBytes > BandwidthLimitKB * 1024)
+            {
+                lock (_largeFileLock)
+                {
+                    _largeFileTransferring = true;
+                }
+            }
+        }
+
+        private void MarkLargeFileTransferEnd(long fileSizeBytes)
+        {
+            if (fileSizeBytes > BandwidthLimitKB * 1024)
+            {
+                lock (_largeFileLock)
+                {
+                    _largeFileTransferring = false;
+                }
+            }
+        }
+
+        private void TransferFileWithBandwidthLimit(string source, string dest)
+        {
+            var fileInfo = new FileInfo(source);
+            long fileSize = fileInfo.Length;
+            bool isLarge = fileSize > BandwidthLimitKB * 1024;
+
+            if (isLarge)
+            {
+                lock (_largeFileLock)
+                {
+                    while (_largeFileTransferring)
+                    {
+                        Monitor.Wait(_largeFileLock);
+                    }
+                    _largeFileTransferring = true;
+                }
+            }
+
+            try
+            {
+                // ...perform file transfer...
+            }
+            finally
+            {
+                if (isLarge)
+                {
+                    lock (_largeFileLock)
+                    {
+                        _largeFileTransferring = false;
+                        Monitor.PulseAll(_largeFileLock);
+                    }
+                }
+            }
+        }
+
+        public bool IsLargeFileTransferInProgress()
+        {
+            lock (_largeFileLock)
+            {
+                return _largeFileTransferring;
+            }
+        }
+
+        public void EnsureCanStartBackupJob(IEnumerable<string> filesToTransfer)
+        {
+            // If any file in the job is larger than the limit, check if a large file is already being transferred
+            long limitBytes = BandwidthLimitKB * 1024;
+            bool hasLargeFile = filesToTransfer.Any(f => new FileInfo(f).Length > limitBytes);
+            if (hasLargeFile)
+            {
+                lock (_largeFileLock)
+                {
+                    if (_largeFileTransferring)
+                        throw new BandwidthLimitExceededException("A large file transfer is already in progress. Please wait until it finishes before starting another backup job with large files.");
+                }
+            }
+        }
+
         private class JobData
         {
             public string Name { get; set; }
@@ -286,5 +394,11 @@ namespace EasySave.Model
             public List<string> ExtensionsToEncrypt { get; set; }
             public List<string> BlockedProcesses { get; set; }
         }
+    }
+
+    // Add a new exception for bandwidth violation
+    public class BandwidthLimitExceededException : Exception
+    {
+        public BandwidthLimitExceededException(string message) : base(message) { }
     }
 }

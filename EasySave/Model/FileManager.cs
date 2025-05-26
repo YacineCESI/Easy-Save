@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-   
+
 namespace EasySave.Model
 {
     public class FileManager
@@ -11,6 +12,9 @@ namespace EasySave.Model
         private readonly CryptoSoftManager _cryptoSoftManager;
         private readonly Logger _logger;
         private static SemaphoreSlim _fileOperationSemaphore = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
+
+        // Global static set to track remaining priority files across all jobs
+        private static readonly ConcurrentDictionary<string, byte> GlobalPriorityFiles = new();
 
         public FileManager(CryptoSoftManager cryptoSoftManager, Logger logger)
         {
@@ -21,6 +25,26 @@ namespace EasySave.Model
         public CryptoSoftManager GetCryptoSoftManager()
         {
             return _cryptoSoftManager;
+        }
+
+        // Call this before starting all jobs to initialize the global set
+        public static void RegisterPriorityFiles(IEnumerable<string> allPriorityFiles)
+        {
+            GlobalPriorityFiles.Clear();
+            foreach (var file in allPriorityFiles)
+                GlobalPriorityFiles.TryAdd(file, 0);
+        }
+
+        // Call this after copying a priority file
+        public static void MarkPriorityFileCopied(string filePath)
+        {
+            GlobalPriorityFiles.TryRemove(filePath, out _);
+        }
+
+        // Returns true if there are any priority files left to copy
+        public static bool PriorityFilesRemaining()
+        {
+            return !GlobalPriorityFiles.IsEmpty;
         }
 
         public long CopyFile(string source, string destination, bool encrypt)
@@ -119,6 +143,9 @@ namespace EasySave.Model
                 int processedFiles = 0;
                 long totalTime = 0;
 
+                var priorityExtensions = extensionsToEncrypt ?? new List<string>();
+                CopyWithPriorityEnforcement(files.ToList(), priorityExtensions);
+
                 foreach (string file in files)
                 {
                     string relativePath = file.Substring(sourceDir.Length + 1);
@@ -151,6 +178,32 @@ namespace EasySave.Model
             {
                 _logger.LogError(null, $"Error copying directory {sourceDir} to {targetDir}: {ex.Message}");
                 return -2;
+            }
+        }
+
+        private void CopyWithPriorityEnforcement(List<string> files, List<string> priorityExtensions)
+        {
+            // Process files by extension priority order
+            foreach (var ext in priorityExtensions)
+            {
+                foreach (var file in files.Where(f => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+                {
+                    CopyFile(file, /*destination*/"", false);
+                    MarkPriorityFileCopied(file);
+                }
+            }
+            // Now process non-priority files
+            foreach (var file in files)
+            {
+                bool isPriority = priorityExtensions.Any(ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+                if (!isPriority)
+                {
+                    while (PriorityFilesRemaining())
+                    {
+                        Thread.Sleep(100);
+                    }
+                    CopyFile(file, /*destination*/"", false);
+                }
             }
         }
 

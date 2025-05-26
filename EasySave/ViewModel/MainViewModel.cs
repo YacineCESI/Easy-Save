@@ -24,6 +24,8 @@ namespace EasySave.ViewModel
 
         public ObservableCollection<BackupJobViewModel> BackupJobs { get; }
         public ObservableCollection<string> AvailableLanguages { get; }
+        public ObservableCollection<string> PriorityExtensions => _configManager.PriorityExtensions;
+        public string PriorityExtensionsDisplay => _configManager.PriorityExtensionsDisplay;
 
         public BackupManager BackupManager => _backupManager;
 
@@ -80,6 +82,19 @@ namespace EasySave.ViewModel
 
                     // Raise the LanguageChanged event
                     LanguageChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+
+        public int BandwidthLimitKB
+        {
+            get => _configManager.BandwidthLimitKB;
+            set
+            {
+                if (_configManager.BandwidthLimitKB != value)
+                {
+                    _configManager.BandwidthLimitKB = value;
+                    OnPropertyChanged(nameof(BandwidthLimitKB));
                 }
             }
         }
@@ -157,6 +172,20 @@ namespace EasySave.ViewModel
                 }
             });
 
+            _configManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ConfigManager.PriorityExtensions) ||
+                    e.PropertyName == nameof(ConfigManager.PriorityExtensionsDisplay))
+                {
+                    OnPropertyChanged(nameof(PriorityExtensions));
+                    OnPropertyChanged(nameof(PriorityExtensionsDisplay));
+                }
+                if (e.PropertyName == nameof(ConfigManager.BandwidthLimitKB))
+                {
+                    OnPropertyChanged(nameof(BandwidthLimitKB));
+                }
+            };
+
             // Modified RunJobCommand to check job's own blocked processes
             RunJobCommand = new RelayCommand<BackupJobViewModel>(job =>
             {
@@ -232,16 +261,26 @@ namespace EasySave.ViewModel
                     _backupManager.StopJob(job.Name);
                 }
             });
+
+            // Add this to notify UI when priority extensions change
+            _configManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ConfigManager.PriorityExtensions) ||
+                    e.PropertyName == nameof(ConfigManager.PriorityExtensionsDisplay))
+                {
+                    OnPropertyChanged(nameof(PriorityExtensions));
+                    OnPropertyChanged(nameof(PriorityExtensionsDisplay));
+                }
+            };
         }
 
-            // Helper method to update the properties
+        // Helper method to update the properties
         private void UpdateJobViewModelProperties(BackupJobViewModel jobViewModel, float progress, Model.Enums.JobState state, DateTime lastRunTime)
         {
             jobViewModel.Progress = progress;
             jobViewModel.State = state;
             jobViewModel.LastRunTime = lastRunTime;
         }
-
 
         /// <summary>
         /// Executes the currently selected job, if possible.
@@ -263,17 +302,21 @@ namespace EasySave.ViewModel
             var runningBlockedProcesses = GetRunningBlockedProcessesForSelectedJob();
             if (runningBlockedProcesses.Count > 0)
             {
-                // Let MainWindow handle the popup
-                BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
-
-                // Stop the job if it was already running
+                 BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
                 _backupManager.StopJob(SelectedJob.Name);
-
                 return;
             }
 
-            // Safe to execute
-            RunJobCommand.Execute(SelectedJob);
+            try
+            {
+                // Bandwidth check and job execution
+                RunJobCommand.Execute(SelectedJob);
+            }
+            catch (BandwidthLimitExceededException ex)
+            {
+                // Raise an event or set a property to notify the UI
+                BandwidthLimitExceeded?.Invoke(this, ex.Message);
+            }
         }
 
         /// <summary>
@@ -320,6 +363,9 @@ namespace EasySave.ViewModel
 
         // Add an event to notify MainWindow of blocked processes
         public event EventHandler<List<string>> BlockedProcessesDetected;
+
+        // Add an event to notify MainWindow of bandwidth limit exceeded
+        public event EventHandler<string> BandwidthLimitExceeded;
 
         /// <summary>
         /// Continuously checks if any blocked processes start running during job execution

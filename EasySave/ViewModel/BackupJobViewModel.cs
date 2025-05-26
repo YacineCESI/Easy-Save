@@ -68,6 +68,8 @@ namespace EasySave.ViewModel
             }
         }
 
+
+
         public string TargetDirectory
         {
             get => _targetDirectory;
@@ -250,8 +252,7 @@ namespace EasySave.ViewModel
         /// </summary>
         public bool HasBlockedProcesses => BlockedProcesses != null && BlockedProcesses.Count > 0;
 
-
-
+        public ConfigManager BackupManager { get; set; }
     }
 
 }

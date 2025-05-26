@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using EasySave.Model.Enums;
 
@@ -243,6 +244,61 @@ namespace EasySave.Model
             lock (_lockObject)
             {
                 return State;
+            }
+        }
+
+        public List<string> GetAllFilesToBackup()
+        {
+            // Return a flat list of all files this job will back up (full paths)
+            // Implement this based on your job's source directory and filters
+            // Example:
+            var files = Directory.GetFiles(SourceDirectory, "*.*", SearchOption.AllDirectories).ToList();
+            return files;
+        }
+
+        /// <summary>
+        /// Returns the list of files that will be transferred for this job,
+        /// depending on the backup type (FULL or DIFFERENTIAL).
+        /// </summary>
+        public List<string> GetFilesToTransfer()
+        {
+            // For FULL backup, return all files in the source directory (recursively)
+            if (Type == BackupType.FULL)
+            {
+                if (Directory.Exists(SourceDirectory))
+                    return Directory.GetFiles(SourceDirectory, "*", SearchOption.AllDirectories).ToList();
+                else
+                    return new List<string>();
+            }
+            // For DIFFERENTIAL backup, return only files that are new or changed compared to the target
+            else if (Type == BackupType.DIFFERENTIAL)
+            {
+                var filesToTransfer = new List<string>();
+                if (!Directory.Exists(SourceDirectory))
+                    return filesToTransfer;
+
+                var sourceFiles = Directory.GetFiles(SourceDirectory, "*", SearchOption.AllDirectories);
+                foreach (var sourceFile in sourceFiles)
+                {
+                    var relativePath = Path.GetRelativePath(SourceDirectory, sourceFile);
+                    var targetFile = Path.Combine(TargetDirectory, relativePath);
+
+                    if (!File.Exists(targetFile) ||
+                        File.GetLastWriteTimeUtc(sourceFile) > File.GetLastWriteTimeUtc(targetFile) ||
+                        new FileInfo(sourceFile).Length != new FileInfo(targetFile).Length)
+                    {
+                        filesToTransfer.Add(sourceFile);
+                    }
+                }
+                return filesToTransfer;
+            }
+            else
+            {
+                // Default: return all files
+                if (Directory.Exists(SourceDirectory))
+                    return Directory.GetFiles(SourceDirectory, "*", SearchOption.AllDirectories).ToList();
+                else
+                    return new List<string>();
             }
         }
     }

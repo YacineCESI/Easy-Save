@@ -308,5 +308,10 @@ namespace EasySaveV2
                 _viewModel.LogFormat = LogFormat.XAML;
             }
         }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // No longer loading priority extensions from config
+        }
     }
 }

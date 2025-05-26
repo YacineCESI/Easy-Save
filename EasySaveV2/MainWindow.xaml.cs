@@ -49,6 +49,8 @@ namespace EasySaveV2
 
             _viewModel.BlockedProcessesDetected += ViewModel_BlockedProcessesDetected;
 
+            _viewModel.BandwidthLimitExceeded += ViewModel_BandwidthLimitExceeded;
+
             this.Title = _viewModel.GetLocalizedString("appTitle");
         }
 
@@ -207,6 +209,12 @@ namespace EasySaveV2
                             if (jobVm.LastRunTime != lastRunTime)
                                 jobVm.LastRunTime = lastRunTime;
                         }
+                        // ...existing code...
+                        // No code changes required here for the priority extension feature, as the config and UI are now linked.
+                        // ...existing code...
+                        // ...existing code...
+                        // No code changes required here for the bandwidth limit feature, as binding and logic are handled in ViewModel and Model.
+                        // ...existing code...
                     });
 
                     // Stop monitoring if job is no longer running
@@ -254,6 +262,53 @@ namespace EasySaveV2
             }
         }
 
+        private void ViewModel_BandwidthLimitExceeded(object sender, string message)
+        {
+            MessageBox.Show(message, "Bandwidth Limit Exceeded", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        private void AddPriorityExtension_Click(object sender, RoutedEventArgs e)
+        {
+            var ext = AddPriorityExtensionTextBox.Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(ext))
+            {
+                if (!ext.StartsWith(".")) ext = "." + ext;
+                if (!_viewModel.PriorityExtensions.Contains(ext))
+                {
+                    // Add to config manager (which will update the observable collection and save)
+                    var config = _viewModel.BackupManager;
+                    var configManager = config?.GetType().GetField("_configManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(config) as EasySave.Model.ConfigManager;
+                    if (configManager != null)
+                    {
+                        var list = configManager.GetPriorityExtensions();
+                        list.Add(ext); // Add to end (lowest priority)
+                        configManager.SetPriorityExtensions(list);
+                        _viewModel.OnPropertyChanged(nameof(_viewModel.PriorityExtensions)); // This is correct, as the property is named PriorityExtensions
+                        _viewModel.OnPropertyChanged(nameof(_viewModel.PriorityExtensionsDisplay));
+                    }
+                    AddPriorityExtensionTextBox.Text = "";
+                }
+            }
+        }
+
+        private void RemovePriorityExtension_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = PriorityExtensionsListBox.SelectedItem as string;
+            if (!string.IsNullOrWhiteSpace(selected))
+            {
+                var config = _viewModel.BackupManager;
+                var configManager = config?.GetType().GetField("_configManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(config) as EasySave.Model.ConfigManager;
+                if (configManager != null)
+                {
+                    var list = configManager.GetPriorityExtensions();
+                    list.Remove(selected);
+                    configManager.SetPriorityExtensions(list);
+                    _viewModel.OnPropertyChanged(nameof(_viewModel.PriorityExtensions));
+                    _viewModel.OnPropertyChanged(nameof(_viewModel.PriorityExtensionsDisplay));
+                }
+            }
+        }
+
         /// <summary>
         /// Clean up when the window is closed
         /// </summary>
@@ -262,6 +317,7 @@ namespace EasySaveV2
             // Unsubscribe from events
             if (_viewModel != null)
             {
+                _viewModel.BandwidthLimitExceeded -= ViewModel_BandwidthLimitExceeded;
                 _viewModel.LanguageChanged -= ViewModel_LanguageChanged;
             }
 
