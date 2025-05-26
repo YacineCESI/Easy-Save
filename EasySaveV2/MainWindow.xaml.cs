@@ -14,6 +14,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using EasySave.Network;
 
 namespace EasySaveV2
 {
@@ -25,6 +26,8 @@ namespace EasySaveV2
         private readonly MainViewModel _viewModel;
         private DispatcherTimer _progressUpdateTimer;
         private readonly Dictionary<string, CancellationTokenSource> _jobMonitoringTokens = new();
+        private RemoteConsoleServer _remoteConsoleServer;
+        private System.Net.Sockets.Socket _remoteConsoleSocket;
 
         public MainWindow()
         {

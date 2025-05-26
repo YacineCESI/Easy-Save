@@ -7,10 +7,12 @@ using System.Windows;
 using EasySave.Model;
 using System.Linq;
 using System.Threading.Tasks;
+using EasySave.Network;
+using System.Threading;
 
 namespace EasySave.ViewModel
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly BackupManager _backupManager;
         private readonly LanguageManager _languageManager;
@@ -18,6 +20,9 @@ namespace EasySave.ViewModel
         private readonly ConfigManager _configManager;
         private BackupJobViewModel _selectedJob;
         private string _currentLanguage;
+        private RemoteConsoleServer _remoteConsoleServer;
+        private System.Net.Sockets.Socket _remoteConsoleSocket;
+        private Timer _broadcastTimer;
 
         // Event that will be raised when the language changes
         public event EventHandler LanguageChanged;
@@ -290,6 +295,53 @@ namespace EasySave.ViewModel
                 backupManager.GetAllJobs().Select(j => new BackupJobViewModel(j) { BackupManager = _configManager })
             );
 
+            // Start remote console server
+            _remoteConsoleServer = new RemoteConsoleServer(_backupManager);
+          //  _remoteConsoleSocket = _remoteConsoleServer.Connect(); // Ensure socket is created and listening
+            _remoteConsoleServer.RemoteCommandReceived += OnRemoteCommandReceived;
+            _remoteConsoleServer.Start(); // Now safe to call Start()
+
+            // Optionally: broadcast job status on timer or on job state change
+            StartJobStatusBroadcasting();
+        }
+
+        private void OnRemoteCommandReceived(string command, string jobName)
+        {
+            // Handle remote commands: pause, resume, stop, run
+            var job = BackupJobs.FirstOrDefault(j => j.Name == jobName);
+            if (command == null) return;
+            switch (command.ToLowerInvariant())
+            {
+                case "pause":
+                    if (job != null) PauseJob(job);
+                    break;
+                case "resume":
+                    if (job != null) ResumeJob(job);
+                    break;
+                case "stop":
+                    if (job != null) StopJob(job);
+                    break;
+                case "run":
+                    if (job != null) ExecuteJob(job);
+                    break;
+            }
+        }
+
+        // Add this helper for running a single job
+        public void ExecuteJob(BackupJobViewModel job)
+        {
+            if (job != null)
+            {
+                _backupManager.ExecuteBackupJob(job.Name);
+            }
+        }
+
+        private void StartJobStatusBroadcasting()
+        {
+            _broadcastTimer = new Timer(async _ =>
+            {
+                await _remoteConsoleServer.BroadcastJobStatusAsync();
+            }, null, 0, 1000); // every 1 second
         }
 
         // Helper method to update the properties
@@ -431,6 +483,13 @@ namespace EasySave.ViewModel
         public virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // Dispose pattern to stop server when ViewModel is disposed
+        public void Dispose()
+        {
+            _remoteConsoleServer?.Dispose();
+            _broadcastTimer?.Dispose();
         }
     }
 
