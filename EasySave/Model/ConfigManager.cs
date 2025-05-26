@@ -11,29 +11,24 @@ namespace EasySave.Model
         private string _configPath;
         private Dictionary<string, object> _settings;
 
- 
         public ConfigManager()
         {
-            
             string baseConfigDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "EasySave");
 
-           
             Directory.CreateDirectory(baseConfigDirectory);
 
             _configPath = Path.Combine(baseConfigDirectory, "config.json");
             _settings = new Dictionary<string, object>();
 
-           
             if (File.Exists(_configPath))
             {
                 LoadConfig();
             }
             else
             {
-               
-                _settings["Language"] = "en"; 
+                _settings["Language"] = "en";
                 SaveConfig(_settings);
             }
         }
@@ -57,7 +52,6 @@ namespace EasySave.Model
             }
         }
 
- 
         public Dictionary<string, object> LoadConfig()
         {
             try
@@ -76,19 +70,17 @@ namespace EasySave.Model
             }
         }
 
-       
         public T GetSetting<T>(string key, T defaultValue = default)
         {
-            if (_settings.ContainsKey(key))
+            if (_settings.TryGetValue(key, out var value))
             {
                 try
                 {
-                   
-                    if (_settings[key] is JsonElement element)
+                    if (value is JsonElement element)
                     {
                         return (T)Convert.ChangeType(element.GetRawText().Trim('"'), typeof(T));
                     }
-                    return (T)_settings[key];
+                    return (T)value;
                 }
                 catch
                 {
@@ -98,7 +90,6 @@ namespace EasySave.Model
             return defaultValue;
         }
 
-     
         public bool SetSetting<T>(string key, T value)
         {
             try
@@ -112,18 +103,16 @@ namespace EasySave.Model
             }
         }
 
-
         public string GetLanguage()
         {
             return GetSetting<string>("Language", "en");
         }
 
-
         public void SetLanguage(string language)
         {
             SetSetting("Language", language);
         }
-    
+
         public string GetConfigPath()
         {
             return GetSetting<string>("ConfigPath",
@@ -134,6 +123,30 @@ namespace EasySave.Model
         public void SetConfigPath(string path)
         {
             SetSetting("ConfigPath", path);
+        }
+
+        public List<string> GetExtensionsToEncrypt()
+        {
+            if (_settings.TryGetValue("ExtensionsToEncrypt", out var value) && value is List<string> list)
+                return list;
+            return new List<string>();
+        }
+
+        public void SetExtensionsToEncrypt(List<string> extensions)
+        {
+            _settings["ExtensionsToEncrypt"] = extensions;
+        }
+
+        public string GetCryptoSoftPath()
+        {
+            if (_settings.TryGetValue("CryptoSoftPath", out var value) && value is string path)
+                return path;
+            return string.Empty;
+        }
+
+        public void SetCryptoSoftPath(string path)
+        {
+            _settings["CryptoSoftPath"] = path;
         }
     }
 }

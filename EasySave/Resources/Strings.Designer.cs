@@ -88,7 +88,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Are you sure you want to exit? (y/n).
+        ///   Recherche une chaîne localisée semblable à Are you sure you want to exit? Any running backup jobs will be stopped..
         /// </summary>
         internal static string confirmExit {
             get {
@@ -160,7 +160,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Job paused. Press any key to resume....
+        ///   Recherche une chaîne localisée semblable à Pause.
         /// </summary>
         internal static string jobPaused {
             get {
@@ -169,7 +169,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Backup job started....
+        ///   Recherche une chaîne localisée semblable à Resume.
         /// </summary>
         internal static string jobStarted {
             get {
@@ -178,11 +178,20 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Job stopped..
+        ///   Recherche une chaîne localisée semblable à Stop Job.
         /// </summary>
         internal static string jobStopped {
             get {
                 return ResourceManager.GetString("jobStopped", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Stop.
+        /// </summary>
+        internal static string jobStopped1 {
+            get {
+                return ResourceManager.GetString("jobStopped1", resourceCulture);
             }
         }
         
@@ -196,7 +205,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Create a new backup job.
+        ///   Recherche une chaîne localisée semblable à Create Job.
         /// </summary>
         internal static string menuCreateJob {
             get {
@@ -223,7 +232,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Remove a backup job.
+        ///   Recherche une chaîne localisée semblable à Remove .
         /// </summary>
         internal static string menuRemoveJob {
             get {
@@ -232,7 +241,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Run all backup jobs.
+        ///   Recherche une chaîne localisée semblable à Run all .
         /// </summary>
         internal static string menuRunAllJobs {
             get {
@@ -241,7 +250,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Run a backup job.
+        ///   Recherche une chaîne localisée semblable à Run Job.
         /// </summary>
         internal static string menuRunJob {
             get {
@@ -268,7 +277,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Press &apos;P&apos; to pause, &apos;S&apos; to stop, or any other key to continue....
+        ///   Recherche une chaîne localisée semblable à Pause.
         /// </summary>
         internal static string pauseJob {
             get {
@@ -277,7 +286,7 @@ namespace EasySave.Resources {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à Press any key to continue....
+        ///   Recherche une chaîne localisée semblable à Resume.
         /// </summary>
         internal static string pressAnyKey {
             get {

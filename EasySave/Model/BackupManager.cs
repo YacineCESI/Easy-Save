@@ -7,63 +7,72 @@ using System.Threading.Tasks;
 
 namespace EasySave.Model
 {
-
     public class BackupManager
     {
-        private List<BackupJob> _backupJobs;
-        private const int MaxJobs = 5;
+        private List<BackupJob> backupJobs = new();
+        private Queue<BackupJob> jobQueue = new();
         private readonly ConfigManager _configManager;
         private readonly string _jobsConfigPath;
-        private readonly Logger _logger; 
+        private readonly Logger _logger;
+        private readonly FileManager _fileManager;
 
-       
+        // Default constructor
         public BackupManager()
         {
-            _backupJobs = new List<BackupJob>();
             _configManager = new ConfigManager();
-            _logger = new Logger(); 
+            _logger = new Logger();
+
+            // Initialize FileManager with a new CryptoSoftManager
+            _fileManager = new FileManager(
+                new CryptoSoftManager(), // Removed the argument as CryptoSoftManager does not accept any parameters
+                 _logger
+);
 
             _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
-
-           
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
-
-          
             LoadJobs();
         }
 
-      
+        // Constructor with FileManager dependency
+        public BackupManager(FileManager fileManager, Logger logger = null)
+        {
+            _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
+            _configManager = new ConfigManager();
+            _logger = logger ?? new Logger();
+
+            _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
+            LoadJobs();
+        }
+
+        // Access the CryptoSoftManager from the FileManager
+        public CryptoSoftManager GetCryptoSoftManager()
+        {
+            return _fileManager?.GetCryptoSoftManager();
+        }
+
         public bool AddBackupJob(BackupJob job)
         {
-            
-            if (_backupJobs.Count >= MaxJobs)
+            if (job == null) return false;
+
+            if (backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
             }
 
-            
-            if (_backupJobs.Any(j => j.Name.Equals(job.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
-
-            _backupJobs.Add(job);
+            backupJobs.Add(job);
             SaveJobs();
-
-           
             _logger.UpdateJobStatus(job.Name, Enums.JobState.PENDING, 0.0f);
 
             return true;
         }
 
-       
         public bool RemoveBackupJob(string name)
         {
-            int initialCount = _backupJobs.Count;
-            _backupJobs.RemoveAll(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
-            if (_backupJobs.Count < initialCount)
+            var job = backupJobs.FirstOrDefault(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (job != null)
             {
+                backupJobs.Remove(job);
                 SaveJobs();
                 return true;
             }
@@ -71,25 +80,23 @@ namespace EasySave.Model
             return false;
         }
 
-        
         public BackupJob GetBackupJob(string name)
         {
-            return _backupJobs.FirstOrDefault(j =>
+            return backupJobs.FirstOrDefault(j =>
                 j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
-       
         public List<BackupJob> GetAllJobs()
         {
-            return _backupJobs.ToList();
+            return backupJobs.ToList();
         }
 
-      
         public bool ExecuteBackupJob(string name)
         {
             BackupJob job = GetBackupJob(name);
             if (job != null)
             {
+                job.SetFileManager(_fileManager);
                 return job.Execute();
             }
             return false;
@@ -99,29 +106,27 @@ namespace EasySave.Model
         {
             bool allSuccess = true;
 
-            foreach (BackupJob job in _backupJobs)
+            foreach (BackupJob job in backupJobs)
             {
+                job.SetFileManager(_fileManager);
                 allSuccess &= job.Execute();
             }
 
             return allSuccess;
         }
 
-      
         public void PauseJob(string name)
         {
             BackupJob job = GetBackupJob(name);
             job?.Pause();
         }
 
-   
         public void ResumeJob(string name)
         {
             BackupJob job = GetBackupJob(name);
             job?.Resume();
         }
 
-      
         public void StopJob(string name)
         {
             BackupJob job = GetBackupJob(name);
@@ -132,13 +137,18 @@ namespace EasySave.Model
         {
             try
             {
-                
-                var jobsData = _backupJobs.Select(j => new
+                var jobsData = backupJobs.Select(j => new
                 {
-                    Name = j.Name,
-                    SourceDirectory = j.SourceDirectory,
-                    TargetDirectory = j.TargetDirectory,
-                    Type = j.Type.ToString()
+                    j.Name,
+                    j.SourceDirectory,
+                    j.TargetDirectory,
+                    Type = j.Type.ToString(),
+                    j.EncryptFiles,
+                    ExtensionsToEncrypt = j.ExtensionsToEncrypt,
+                    BlockedProcesses = j.BlockedProcesses,
+                    State = j.State.ToString(),
+                    j.LastRunTime,
+                    j.Progress
                 }).ToList();
 
                 string jsonString = JsonSerializer.Serialize(jobsData, new JsonSerializerOptions
@@ -151,6 +161,7 @@ namespace EasySave.Model
             catch (Exception ex)
             {
                 Console.WriteLine($"Error saving jobs: {ex.Message}");
+                _logger.LogError("BackupManager", $"Error saving jobs: {ex.Message}");
             }
         }
 
@@ -166,35 +177,49 @@ namespace EasySave.Model
                 string jsonString = File.ReadAllText(_jobsConfigPath);
                 var jobsData = JsonSerializer.Deserialize<List<JobData>>(jsonString);
 
-                _backupJobs.Clear();
+                backupJobs.Clear();
 
                 foreach (var data in jobsData)
                 {
-              
                     Enum.TryParse(data.Type, out Enums.BackupType type);
+                    Enum.TryParse(data.State, out Enums.JobState state);
 
-                    _backupJobs.Add(new BackupJob(
+                    var job = new BackupJob(
                         data.Name,
                         data.SourceDirectory,
                         data.TargetDirectory,
-                        type
-                    ));
+                        type,
+                        data.EncryptFiles,
+                        data.ExtensionsToEncrypt,
+                        data.BlockedProcesses
+                    );
+                    
+                    job.State = state;
+                    job.LastRunTime = data.LastRunTime;
+                    job.Progress = data.Progress;
+
+                    backupJobs.Add(job);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error loading jobs: {ex.Message}");
+                _logger.LogError("BackupManager", $"Error loading jobs: {ex.Message}");
             }
         }
 
-
-        
         private class JobData
         {
             public string Name { get; set; }
             public string SourceDirectory { get; set; }
             public string TargetDirectory { get; set; }
             public string Type { get; set; }
+            public string State { get; set; }
+            public DateTime LastRunTime { get; set; }
+            public float Progress { get; set; }
+            public bool EncryptFiles { get; set; }
+            public List<string> ExtensionsToEncrypt { get; set; }
+            public List<string> BlockedProcesses { get; set; }
         }
     }
 }

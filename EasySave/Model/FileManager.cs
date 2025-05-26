@@ -2,189 +2,176 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 
 namespace EasySave.Model
 {
-
     public class FileManager
     {
-       
-        public long CopyFile(string sourcePath, string destinationPath, Logger logger = null, string jobName = null)
+        private readonly CryptoSoftManager _cryptoSoftManager;
+        private readonly Logger _logger;
+
+        public FileManager(CryptoSoftManager cryptoSoftManager, Logger logger)
         {
+            _cryptoSoftManager = cryptoSoftManager ?? throw new ArgumentNullException(nameof(cryptoSoftManager));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public CryptoSoftManager GetCryptoSoftManager()
+        {
+            return _cryptoSoftManager;
+        }
+
+        public long CopyFile(string source, string destination, bool encrypt)
+        {
+            if (!File.Exists(source))
+            {
+                return -1; // Error: source file does not exist
+            }
+
             try
             {
+               
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                
               
-                string destinationDirectory = Path.GetDirectoryName(destinationPath);
-                if (!Directory.Exists(destinationDirectory))
-                {
-                    Directory.CreateDirectory(destinationDirectory);
-                }
-
-             
-                var fileInfo = new FileInfo(sourcePath);
-                long fileSize = fileInfo.Length;
-
+                var fileInfo = new FileInfo(source);
+                var fileSize = fileInfo.Length;
+                
+                
+                var startTime = DateTime.Now;
+                
+                
+                File.Copy(source, destination, true);
+                
+                
+                var transferTime = (long)(DateTime.Now - startTime).TotalMilliseconds;
+                
                
-                var stopWatch = System.Diagnostics.Stopwatch.StartNew();
-                File.Copy(sourcePath, destinationPath, true);
-                stopWatch.Stop();
-                long transferTime = stopWatch.ElapsedMilliseconds;
-
+                _logger.LogAction(null, source, destination, fileSize, transferTime, 0);
+                
                
-                if (logger != null && !string.IsNullOrEmpty(jobName))
+                long encryptionTime = 0;
+                if (encrypt)
                 {
-                    logger.LogAction(jobName, sourcePath, destinationPath, fileSize, transferTime);
+                    var tempPath = destination + ".tmp";
+                    if (File.Exists(destination))
+                    {
+                       
+                        File.Move(destination, tempPath, true);
+                     
+                        encryptionTime = _cryptoSoftManager.EncryptFile(tempPath, destination);
+                        
+                        
+                        _logger.LogEncryptionDetails(destination, encryptionTime);
+                        
+                       
+                        if (encryptionTime > 0 && File.Exists(tempPath))
+                        {
+                            File.Delete(tempPath);
+                        }
+                        else if (encryptionTime < 0)
+                        {
+                            
+                            if (File.Exists(tempPath))
+                            {
+                                File.Move(tempPath, destination, true);
+                            }
+                            _logger.LogError(null, $"Encryption failed for {destination}: {encryptionTime}");
+                        }
+                    }
                 }
-
-                return transferTime;
+                
+                return transferTime + encryptionTime;
             }
             catch (Exception ex)
             {
-                
-                if (logger != null && !string.IsNullOrEmpty(jobName))
-                {
-                    logger.LogAction(jobName, sourcePath, destinationPath, 0, -1);
-                }
-                return -1;
+                _logger.LogError(null, $"Error copying file {source} to {destination}: {ex.Message}");
+                return -2; 
             }
         }
 
-  
- 
-        public long CopyDirectory(string sourceDir, string targetDir, bool fullBackup,
-            Func<float, bool> onProgressUpdate = null, Logger logger = null, string jobName = null)
+        public long CopyDirectory(string sourceDir, string targetDir, List<string> extensionsToEncrypt, bool encrypt, Func<float, bool> onProgressUpdate = null)
         {
+            if (!Directory.Exists(sourceDir))
+            {
+                return -1; 
+            }
+
             try
             {
-               
-                if (!Directory.Exists(targetDir))
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
-
-               
-                var sourceFiles = GetDirectoryFiles(sourceDir);
-                if (sourceFiles.Count == 0)
-                {
-                    return 0; 
-                }
+                Directory.CreateDirectory(targetDir);
 
                 
-                List<string> filesToCopy = sourceFiles;
-                if (!fullBackup && Directory.Exists(targetDir))
+                string[] files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
+                int totalFiles = files.Length;
+                
+                if (totalFiles == 0)
                 {
-                    filesToCopy = CompareDirectories(sourceDir, targetDir);
+                    
+                    onProgressUpdate?.Invoke(100);
+                    return 0;
                 }
+                
+                int processedFiles = 0;
+                long totalTime = 0;
 
-                if (filesToCopy.Count == 0)
+                foreach (string file in files)
                 {
-                    return 0; 
-                }
-
-               
-                int totalFiles = filesToCopy.Count;
-                int copiedFiles = 0;
-
-                foreach (string sourceFile in filesToCopy)
-                {
-                  
-                    string relativePath = sourceFile.Substring(sourceDir.Length + 1);
-                    string targetFile = Path.Combine(targetDir, relativePath);
+                    string relativePath = file.Substring(sourceDir.Length + 1);
+                    string targetPath = Path.Combine(targetDir, relativePath);
 
                     
-                    long result = CopyFile(sourceFile, targetFile, logger, jobName);
+                    bool encryptFile = encrypt && ShouldEncrypt(file, extensionsToEncrypt);
 
-                    if (result >= 0)
-                        copiedFiles++;
+                    long fileTime = CopyFile(file, targetPath, encryptFile);
 
-                    float progress = (float)copiedFiles / totalFiles * 100;
+                    if (fileTime >= 0)
+                    {
+                        totalTime += fileTime;
+                    }
+
+                    processedFiles++;
+                    float progress = (float)processedFiles / totalFiles * 100;
+
+                  
                     if (onProgressUpdate != null)
                     {
-                        bool continueOperation = onProgressUpdate(progress);
-                        if (!continueOperation)
+                        if (!onProgressUpdate(progress))
                         {
-                            return copiedFiles;
+                            return -3; 
                         }
                     }
                 }
 
-                return copiedFiles;
+                return totalTime;
             }
             catch (Exception ex)
             {
-                return -1;
+                _logger.LogError(null, $"Error copying directory {sourceDir} to {targetDir}: {ex.Message}");
+                return -2; // Error during copy
             }
         }
 
-        
-        public List<string> GetDirectoryFiles(string directoryPath)
+        public bool ShouldEncrypt(string filePath, List<string> extensionsToEncrypt)
         {
-            try
+            if (extensionsToEncrypt == null || extensionsToEncrypt.Count == 0)
             {
-                return Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories).ToList();
-            }
-            catch
-            {
-                return new List<string>();
-            }
-        }
-
-        public List<string> CompareDirectories(string sourceDir, string targetDir)
-        {
-            var filesToCopy = new List<string>();
-
-            var sourceFiles = GetDirectoryFiles(sourceDir);
-
-            foreach (string sourceFile in sourceFiles)
-            {
-               
-                string relativePath = sourceFile.Substring(sourceDir.Length + 1);
-                string targetFile = Path.Combine(targetDir, relativePath);
-
-                
-                if (!File.Exists(targetFile))
-                {
-                    filesToCopy.Add(sourceFile);
-                    continue;
-                }
-
-                
-                DateTime sourceLastModified = File.GetLastWriteTime(sourceFile);
-                DateTime targetLastModified = File.GetLastWriteTime(targetFile);
-
-                if (sourceLastModified > targetLastModified)
-                {
-                    filesToCopy.Add(sourceFile);
-                }
+                return false;
             }
 
-            return filesToCopy;
-        }
+            string extension = Path.GetExtension(filePath);
+            if (string.IsNullOrEmpty(extension))
+            {
+                return false;
+            }
 
-        public long GetFileSize(string path)
-        {
-            try
+            // Remove the dot from the extension if present
+            if (extension.StartsWith("."))
             {
-                var fileInfo = new FileInfo(path);
-                return fileInfo.Length;
+                extension = extension.Substring(1);
             }
-            catch
-            {
-                return 0;
-            }
-        }
 
-        public DateTime GetLastModifiedTime(string path)
-        {
-            try
-            {
-                return File.GetLastWriteTime(path);
-            }
-            catch
-            {
-                return DateTime.MinValue;
-            }
+            return extensionsToEncrypt.Any(ext => ext.Equals(extension, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

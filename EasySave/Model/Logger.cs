@@ -1,63 +1,232 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Runtime.InteropServices;
+using System.Xml;
 using EasySave.Model.Enums;
 
 namespace EasySave.Model
 {
-  
     public class Logger
     {
-        private string _dailyLogPath;
-        private string _statusLogPath;
+        private readonly string _logDirectory;
+        private readonly string _activityLogPathJson;
+        private readonly string _statusLogPathJson;
+        private readonly string _encryptionLogPathJson;
+        private readonly string _activityLogPathXaml;
+        private readonly string _statusLogPathXaml;
+        private readonly string _encryptionLogPathXaml;
 
-  
         public Logger()
-        {
-          
-            string baseLogDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "EasySave", "Logs");
-
-         
-            Directory.CreateDirectory(baseLogDirectory);
-
-            string dailyLogName = $"DailyLog_{DateTime.Now:yyyy-MM-dd}.json";
-            _dailyLogPath = Path.Combine(baseLogDirectory, dailyLogName);
-
-          
-            _statusLogPath = Path.Combine(baseLogDirectory, "Status.json");
-
-        
-            EnsureLogExists();
-        }
-
-  
-        public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime)
         {
             try
             {
-          
-                string uncSource = ToUncPath(sourceFile);
-                string uncDestination = ToUncPath(destinationFile);
+                string _logDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "EasySave", "Logs");
 
-                var logEntry = new LogEntry
+                // Ensure the directory exists with better error handling
+                if (!Directory.Exists(_logDirectory))
                 {
-                    Timestamp = DateTime.Now,
-                    JobName = jobName,
-                    SourcePath = uncSource,
-                    DestinationPath = uncDestination,
+                    Directory.CreateDirectory(_logDirectory);
+                    Console.WriteLine($"Created log directory: {_logDirectory}");
+                }
+
+                var today = DateTime.Now.ToString("yyyy-MM-dd");
+                
+                // JSON log paths
+                _activityLogPathJson = Path.Combine(_logDirectory, $"activity_log_{today}.json");
+                _statusLogPathJson = Path.Combine(_logDirectory, $"status_log_{today}.json");
+                _encryptionLogPathJson = Path.Combine(_logDirectory, $"encryption_log_{today}.json");
+
+                // XAML log paths
+                _activityLogPathXaml = Path.Combine(_logDirectory, $"activity_log_{today}.xaml");
+                _statusLogPathXaml = Path.Combine(_logDirectory, $"status_log_{today}.xaml");
+                _encryptionLogPathXaml = Path.Combine(_logDirectory, $"encryption_log_{today}.xaml");
+
+                // Create JSON files if they don't exist
+                EnsureFileExists(_activityLogPathJson, true);
+                EnsureFileExists(_statusLogPathJson, false);
+                EnsureFileExists(_encryptionLogPathJson, true);
+                
+                // Create XAML files if they don't exist
+                EnsureFileExists(_activityLogPathXaml, true, true);
+                EnsureFileExists(_statusLogPathXaml, false, true);
+                EnsureFileExists(_encryptionLogPathXaml, true, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing logger: {ex.Message}");
+                // Fall back to a directory that should always be writable
+                _logDirectory = Path.Combine(Path.GetTempPath(), "EasySave", "Logs");
+                Directory.CreateDirectory(_logDirectory);
+
+                var today = DateTime.Now.ToString("yyyy-MM-dd");
+                
+                // JSON log paths
+                _activityLogPathJson = Path.Combine(_logDirectory, $"activity_log_{today}.json");
+                _statusLogPathJson = Path.Combine(_logDirectory, $"status_log_{today}.json");
+                _encryptionLogPathJson = Path.Combine(_logDirectory, $"encryption_log_{today}.json");
+                
+                // XAML log paths
+                _activityLogPathXaml = Path.Combine(_logDirectory, $"activity_log_{today}.xaml");
+                _statusLogPathXaml = Path.Combine(_logDirectory, $"status_log_{today}.xaml");
+                _encryptionLogPathXaml = Path.Combine(_logDirectory, $"encryption_log_{today}.xaml");
+
+                Console.WriteLine($"Using fallback log directory: {_logDirectory}");
+            }
+        }
+
+        private void EnsureFileExists(string filePath, bool isArray = false, bool isXaml = false)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    if (isXaml)
+                    {
+                        // Create empty XAML structure
+                        string content = isArray 
+                            ? "<ArrayOfLogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />" 
+                            : "<LogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />";
+                        File.WriteAllText(filePath, content);
+                    }
+                    else 
+                    {
+                        // Create empty JSON structure
+                        File.WriteAllText(filePath, isArray ? "[]" + Environment.NewLine : "{}");
+                    }
+                    Console.WriteLine($"Created log file: {filePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating log file {filePath}: {ex.Message}");
+            }
+        }
+
+        // Get the appropriate log path based on log type and format
+        private string GetLogPath(string logType, LogFormat format)
+        {
+            return format == LogFormat.JSON
+                ? logType switch
+                {
+                    "activity" => _activityLogPathJson,
+                    "status" => _statusLogPathJson,
+                    "encryption" => _encryptionLogPathJson,
+                    _ => _activityLogPathJson
+                }
+                : logType switch
+                {
+                    "activity" => _activityLogPathXaml,
+                    "status" => _statusLogPathXaml,
+                    "encryption" => _encryptionLogPathXaml,
+                    _ => _activityLogPathXaml
+                };
+        }
+
+        public void LogAction(string jobName, string sourceFile, string destinationFile, long fileSize, long transferTime, long encryptionTime, LogFormat format = LogFormat.JSON)
+        {
+            try
+            {
+                var logEntry = new
+                {
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    JobName = jobName ?? "Unknown",
+                    SourceFile = sourceFile,
+                    DestinationFile = destinationFile,
                     FileSize = fileSize,
-                    TransferTime = transferTime
+                    TransferTime = transferTime,
+                    EncryptionTime = encryptionTime
                 };
 
+                string logPath = GetLogPath("activity", format);
                 
-                string jsonEntry = FormatLogEntry(logEntry);
+                if (format == LogFormat.JSON)
+                {
+                    // Serialize with better formatting
+                    string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
 
-             
-                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
+                    // Use locking to avoid file access conflicts
+                    lock (this)
+                    {
+                        // Read existing content if the file exists and isn't empty
+                        string content = "[]";
+                        try
+                        {
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                content = File.ReadAllText(logPath);
+                                // If the file doesn't start with a bracket, initialize it as an array
+                                if (!content.TrimStart().StartsWith("["))
+                                {
+                                    content = "[]";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error reading activity log: {ex.Message}");
+                        }
+
+                        // Convert the array-style JSON with proper formatting
+                        if (content == "[]")
+                        {
+                            // First entry
+                            content = $"[\n{json}\n]";
+                        }
+                        else
+                        {
+                            // Remove the closing bracket, add the new entry, and close the array
+                            content = content.TrimEnd().TrimEnd(']') + ",\n" + json + "\n]";
+                        }
+
+                        File.WriteAllText(logPath, content);
+                    }
+                }
+                else // XAML format
+                {
+                    lock (this)
+                    {
+                        try
+                        {
+                            XmlDocument doc = new XmlDocument();
+                            
+                            // Load existing file or create new structure
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                doc.Load(logPath);
+                            }
+                            else
+                            {
+                                doc.LoadXml("<ArrayOfLogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />");
+                            }
+
+                            // Create new entry
+                            XmlElement entry = doc.CreateElement("LogEntry");
+                            
+                            // Add all properties
+                            AddXmlElement(doc, entry, "Timestamp", logEntry.Timestamp);
+                            AddXmlElement(doc, entry, "JobName", logEntry.JobName);
+                            AddXmlElement(doc, entry, "SourceFile", logEntry.SourceFile);
+                            AddXmlElement(doc, entry, "DestinationFile", logEntry.DestinationFile);
+                            AddXmlElement(doc, entry, "FileSize", logEntry.FileSize.ToString());
+                            AddXmlElement(doc, entry, "TransferTime", logEntry.TransferTime.ToString());
+                            AddXmlElement(doc, entry, "EncryptionTime", logEntry.EncryptionTime.ToString());
+
+                            // Append entry to root
+                            doc.DocumentElement.AppendChild(entry);
+                            
+                            // Save the document
+                            doc.Save(logPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error updating XAML log: {ex.Message}");
+                        }
+                    }
+                }
+
+                Console.WriteLine($"Logged action for job {jobName} to {logPath}");
             }
             catch (Exception ex)
             {
@@ -65,69 +234,68 @@ namespace EasySave.Model
             }
         }
 
-        public void LogError(string jobName, string errorMessage)
+        // Helper method to add XML elements
+        private void AddXmlElement(XmlDocument doc, XmlElement parent, string name, string value)
         {
-            try
-            {
-                var logEntry = new LogEntry
-                {
-                    Timestamp = DateTime.Now,
-                    JobName = jobName,
-                    SourcePath = "ERROR",
-                    DestinationPath = "ERROR",
-                    FileSize = 0,
-                    TransferTime = -1,
-                    ErrorMessage = errorMessage
-                };
-
-     
-                string jsonEntry = FormatLogEntry(logEntry);
-
-
-                File.AppendAllText(_dailyLogPath, jsonEntry + Environment.NewLine);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error logging error: {ex.Message}");
-            }
+            XmlElement element = doc.CreateElement(name);
+            element.InnerText = value;
+            parent.AppendChild(element);
         }
 
-
-        public void UpdateJobStatus(string jobName, JobState status, float progress)
+        public void UpdateJobStatus(string jobName, JobState status, float progress, LogFormat format = LogFormat.JSON)
         {
             try
             {
-          
-                Dictionary<string, JobStatus> statuses = new Dictionary<string, JobStatus>();
-                if (File.Exists(_statusLogPath))
+                var statusEntry = new
                 {
-                    string json = File.ReadAllText(_statusLogPath);
-                    try
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    JobName = jobName ?? "Unknown",
+                    Status = status.ToString(),
+                    Progress = progress
+                };
+
+                string logPath = GetLogPath("status", format);
+                
+                if (format == LogFormat.JSON)
+                {
+                    string json = JsonSerializer.Serialize(statusEntry, new JsonSerializerOptions { WriteIndented = true });
+
+                    // Use locking to avoid file access conflicts
+                    lock (this)
                     {
-                        statuses = JsonSerializer.Deserialize<Dictionary<string, JobStatus>>(json) ??
-                            new Dictionary<string, JobStatus>();
+                        // Use File.WriteAllText which is more reliable than AppendAllText
+                        File.WriteAllText(logPath, json);
                     }
-                    catch
+                }
+                else // XAML format
+                {
+                    lock (this)
                     {
-              
-                        statuses = new Dictionary<string, JobStatus>();
+                        try
+                        {
+                            XmlDocument doc = new XmlDocument();
+                            
+                            // For status logs, we always overwrite the previous status
+                            doc.LoadXml("<LogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />");
+                            XmlElement root = doc.DocumentElement;
+                            
+                            // Add all properties
+                            AddXmlElement(doc, root, "Timestamp", statusEntry.Timestamp);
+                            AddXmlElement(doc, root, "JobName", statusEntry.JobName);
+                            AddXmlElement(doc, root, "Status", statusEntry.Status);
+                            AddXmlElement(doc, root, "Progress", statusEntry.Progress.ToString());
+                            
+                            // Save the document
+                            doc.Save(logPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error updating XAML status log: {ex.Message}");
+                        }
                     }
                 }
 
-           
-                statuses[jobName] = new JobStatus
-                {
-                    State = status.ToString(),
-                    Progress = progress,
-                    LastUpdated = DateTime.Now
-                };
-
-              
-                string updatedJson = JsonSerializer.Serialize(statuses, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-                File.WriteAllText(_statusLogPath, updatedJson);
+                Console.WriteLine($"Updated status for job {jobName} to {status} with progress {progress:F2}%");
             }
             catch (Exception ex)
             {
@@ -135,114 +303,214 @@ namespace EasySave.Model
             }
         }
 
-       
-        public string GetDailyLogPath()
-        {
-            return _dailyLogPath;
-        }
-
-   
-        public string GetStatusLogPath()
-        {
-            return _statusLogPath;
-        }
-
-       
-        private string FormatLogEntry(LogEntry entry)
-        {
-            return JsonSerializer.Serialize(entry, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-        }
-
-
-        private void EnsureLogExists()
+        public void LogEncryptionDetails(string filePath, long encryptionTime, LogFormat format = LogFormat.JSON)
         {
             try
             {
-               
-                if (!File.Exists(_dailyLogPath))
+                var logEntry = new
                 {
-                    File.WriteAllText(_dailyLogPath, "");
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FilePath = filePath,
+                    EncryptionTime = encryptionTime,
+                    Status = encryptionTime > 0 ? "Success" : "Failed"
+                };
+
+                string logPath = GetLogPath("encryption", format);
+                
+                if (format == LogFormat.JSON)
+                {
+                    string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+
+                    // Use locking to avoid file access conflicts
+                    lock (this)
+                    {
+                        // Read existing content if the file exists and isn't empty
+                        string content = "[]";
+                        try
+                        {
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                content = File.ReadAllText(logPath);
+                                // If the file doesn't start with a bracket, initialize it as an array
+                                if (!content.TrimStart().StartsWith("["))
+                                {
+                                    content = "[]";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error reading encryption log: {ex.Message}");
+                        }
+
+                        // Convert the array-style JSON with proper formatting
+                        if (content == "[]")
+                        {
+                            // First entry
+                            content = $"[\n{json}\n]";
+                        }
+                        else
+                        {
+                            // Remove the closing bracket, add the new entry, and close the array
+                            content = content.TrimEnd().TrimEnd(']') + ",\n" + json + "\n]";
+                        }
+
+                        File.WriteAllText(logPath, content);
+                    }
+                }
+                else // XAML format
+                {
+                    lock (this)
+                    {
+                        try
+                        {
+                            XmlDocument doc = new XmlDocument();
+                            
+                            // Load existing file or create new structure
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                doc.Load(logPath);
+                            }
+                            else
+                            {
+                                doc.LoadXml("<ArrayOfLogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />");
+                            }
+
+                            // Create new entry
+                            XmlElement entry = doc.CreateElement("LogEntry");
+                            
+                            // Add all properties
+                            AddXmlElement(doc, entry, "Timestamp", logEntry.Timestamp);
+                            AddXmlElement(doc, entry, "FilePath", logEntry.FilePath);
+                            AddXmlElement(doc, entry, "EncryptionTime", logEntry.EncryptionTime.ToString());
+                            AddXmlElement(doc, entry, "Status", logEntry.Status);
+
+                            // Append entry to root
+                            doc.DocumentElement.AppendChild(entry);
+                            
+                            // Save the document
+                            doc.Save(logPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error updating XAML encryption log: {ex.Message}");
+                        }
+                    }
                 }
 
-             
-                if (!File.Exists(_statusLogPath))
-                {
-                    File.WriteAllText(_statusLogPath, "{}");
-                }
+                Console.WriteLine($"Logged encryption details for {filePath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error ensuring logs exist: {ex.Message}");
+                Console.WriteLine($"Error logging encryption details: {ex.Message}");
             }
         }
 
-  
-        private string ToUncPath(string path)
+        public void LogError(string jobName, string errorMessage, LogFormat format = LogFormat.JSON)
         {
-            if (string.IsNullOrWhiteSpace(path))
-                return path;
-
-           
-            if (path.StartsWith(@"\\"))
-                return path;
- 
-  
-            
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return path;
-
-      
             try
             {
-                string root = Path.GetPathRoot(path);
-                if (string.IsNullOrEmpty(root))
-                    return path;
-
-               
-                var sb = new System.Text.StringBuilder(512);
-                int size = sb.Capacity;
-                int result = WNetGetConnection(root.TrimEnd('\\'), sb, ref size);
-                if (result == 0)
+                var logEntry = new
                 {
-                    string uncRoot = sb.ToString();
-                    string relativePath = path.Substring(root.Length);
-                    return Path.Combine(uncRoot, relativePath);
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    JobName = jobName ?? "Unknown",
+                    Error = errorMessage
+                };
+
+                string logPath = GetLogPath("activity", format);
+                
+                if (format == LogFormat.JSON)
+                {
+                    string json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+
+                    // Use locking to avoid file access conflicts
+                    lock (this)
+                    {
+                        // Read existing content if the file exists and isn't empty
+                        string content = "[]";
+                        try
+                        {
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                content = File.ReadAllText(logPath);
+                                // If the file doesn't start with a bracket, initialize it as an array
+                                if (!content.TrimStart().StartsWith("["))
+                                {
+                                    content = "[]";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error reading activity log: {ex.Message}");
+                        }
+
+                        // Convert the array-style JSON with proper formatting
+                        if (content == "[]")
+                        {
+                            // First entry
+                            content = $"[\n{json}\n]";
+                        }
+                        else
+                        {
+                            // Remove the closing bracket, add the new entry, and close the array
+                            content = content.TrimEnd().TrimEnd(']') + ",\n" + json + "\n]";
+                        }
+
+                        File.WriteAllText(logPath, content);
+                    }
                 }
+                else // XAML format
+                {
+                    lock (this)
+                    {
+                        try
+                        {
+                            XmlDocument doc = new XmlDocument();
+                            
+                            // Load existing file or create new structure
+                            if (File.Exists(logPath) && new FileInfo(logPath).Length > 0)
+                            {
+                                doc.Load(logPath);
+                            }
+                            else
+                            {
+                                doc.LoadXml("<ArrayOfLogEntry xmlns=\"http://schemas.datacontract.org/2004/07/EasySave.Model\" />");
+                            }
+
+                            // Create new entry
+                            XmlElement entry = doc.CreateElement("LogEntry");
+                            
+                            // Add all properties
+                            AddXmlElement(doc, entry, "Timestamp", logEntry.Timestamp);
+                            AddXmlElement(doc, entry, "JobName", logEntry.JobName);
+                            AddXmlElement(doc, entry, "Error", logEntry.Error);
+
+                            // Append entry to root
+                            doc.DocumentElement.AppendChild(entry);
+                            
+                            // Save the document
+                            doc.Save(logPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error updating XAML error log: {ex.Message}");
+                        }
+                    }
+                }
+
+                Console.WriteLine($"Logged error for job {jobName}: {errorMessage}");
             }
-            catch
+            catch (Exception ex)
             {
-              
+                Console.WriteLine($"Error logging error message: {ex.Message}");
             }
-            return path;
         }
 
-        [DllImport("mpr.dll", CharSet = CharSet.Auto)]
-        private static extern int WNetGetConnection(
-            [MarshalAs(UnmanagedType.LPTStr)] string localName,
-            [MarshalAs(UnmanagedType.LPTStr)] System.Text.StringBuilder remoteName,
-            ref int length);
-
-     
-        public class LogEntry
+        // Method to get the current log directory path
+        public string GetLogDirectory()
         {
-            public DateTime Timestamp { get; set; }
-            public string JobName { get; set; }
-            public string SourcePath { get; set; }
-            public string DestinationPath { get; set; }
-            public long FileSize { get; set; }
-            public long TransferTime { get; set; }
-            public string ErrorMessage { get; set; }
-        }
-
-    
-        public class JobStatus
-        {
-            public string State { get; set; }
-            public float Progress { get; set; }
-            public DateTime LastUpdated { get; set; }
+            return _logDirectory;
         }
     }
 }
