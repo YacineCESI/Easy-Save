@@ -187,6 +187,99 @@ namespace EasySave.Model
             }
         }
 
+        // Add an overload to Execute to accept blockedProcesses for resuming
+        public bool Execute(List<string> blockedProcesses)
+        {
+            lock (_lockObject)
+            {
+                if (_fileManager == null)
+                    throw new InvalidOperationException("FileManager must be set before executing the job.");
+
+                // Only reset progress and state if not resuming from PAUSED
+                if (State != JobState.PAUSED)
+                {
+                    Progress = 0;
+                    State = JobState.RUNNING;
+                    LastRunTime = DateTime.Now;
+                }
+                else
+                {
+                    State = JobState.RUNNING;
+                }
+
+                _isPaused = false;
+                _isStopped = false;
+            }
+
+            _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+            _logger.LogAction(Name, SourceDirectory, TargetDirectory, 0, 0, 0, LogFormat);
+            _logger.LogError(Name, $"Job launched - Type: {Type}, Source: {SourceDirectory}, Target: {TargetDirectory}", LogFormat);
+
+            bool progressCallback(float progress)
+            {
+                lock (_lockObject)
+                {
+                    Progress = progress;
+                    if (_isPaused || _isStopped)
+                    {
+                        return false;
+                    }
+                }
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                return true;
+            }
+
+            try
+            {
+                // Pass blockedProcesses to FileManager.CopyDirectory
+                long result = _fileManager.CopyDirectory(
+                    SourceDirectory,
+                    TargetDirectory,
+                    ExtensionsToEncrypt,
+                    EncryptFiles,
+                    progressCallback,
+                    blockedProcesses
+                );
+
+                lock (_lockObject)
+                {
+                    if (result >= 0 && !_isStopped)
+                    {
+                        State = JobState.COMPLETED;
+                        Progress = 100.0f;
+                    }
+                    else if (_isPaused)
+                    {
+                        State = JobState.PAUSED;
+                    }
+                    else if (_isStopped)
+                    {
+                        State = JobState.PENDING;
+                        Progress = 0.0f;
+                    }
+                    else
+                    {
+                        State = JobState.FAILED;
+                    }
+                }
+
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, $"Job execution completed - Final state: {State}, Progress: {Progress}%", LogFormat);
+
+                return result >= 0;
+            }
+            catch (Exception ex)
+            {
+                lock (_lockObject)
+                {
+                    State = JobState.FAILED;
+                }
+                _logger.LogError(Name, $"Error executing job: {ex.Message}", LogFormat);
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                return false;
+            }
+        }
+
         public void Pause()
         {
             lock (_lockObject)

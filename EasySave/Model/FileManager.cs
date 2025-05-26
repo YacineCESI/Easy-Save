@@ -19,10 +19,14 @@ namespace EasySave.Model
         // Global static set to track remaining priority files across all jobs
         private static readonly ConcurrentDictionary<string, byte> GlobalPriorityFiles = new();
 
+        // Add reference to BusinessSoftwareManager for blocked process monitoring
+        private BusinessSoftwareManager _businessSoftwareManager;
+
         public FileManager(CryptoSoftManager cryptoSoftManager, Logger logger)
         {
             _cryptoSoftManager = cryptoSoftManager ?? throw new ArgumentNullException(nameof(cryptoSoftManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _businessSoftwareManager = new BusinessSoftwareManager();
         }
 
         // New: Set BackupManager reference (call this after construction)
@@ -34,6 +38,12 @@ namespace EasySave.Model
         public CryptoSoftManager GetCryptoSoftManager()
         {
             return _cryptoSoftManager;
+        }
+
+        // Add method to get BusinessSoftwareManager
+        public BusinessSoftwareManager GetBusinessSoftwareManager()
+        {
+            return _businessSoftwareManager;
         }
 
         // Call this before starting all jobs to initialize the global set
@@ -56,8 +66,24 @@ namespace EasySave.Model
             return !GlobalPriorityFiles.IsEmpty;
         }
 
-        public long CopyFile(string source, string destination, bool encrypt)
+        // Add method for monitoring blocked processes
+        public void CheckBlockedProcesses(List<string> blockedProcesses)
         {
+            if (_businessSoftwareManager.IsBusinessSoftwareRunning(blockedProcesses))
+            {
+                throw new BlockedProcessRunningException("A blocked process is currently running. File operation paused.");
+            }
+        }
+
+        public long CopyFile(string source, string destination, bool encrypt, List<string> blockedProcesses = null)
+        {
+            // Check if any blocked process is running before proceeding
+            if (blockedProcesses != null && _businessSoftwareManager.IsBusinessSoftwareRunning(blockedProcesses))
+            {
+                _logger.LogError(null, $"File copy paused: Blocked process running while trying to copy {source}");
+                throw new BlockedProcessRunningException($"Cannot copy file {source}: A blocked process is running");
+            }
+
             if (!File.Exists(source))
             {
                 return -1; // Error: source file does not exist
@@ -122,6 +148,11 @@ namespace EasySave.Model
 
                 return transferTime + encryptionTime;
             }
+            catch (BlockedProcessRunningException)
+            {
+                // Re-throw this specific exception to be handled appropriately
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(null, $"Error copying file {source} to {destination}: {ex.Message}");
@@ -129,8 +160,11 @@ namespace EasySave.Model
             }
         }
 
-        public long CopyDirectory(string sourceDir, string targetDir, List<string> extensionsToEncrypt, bool encrypt, Func<float, bool> onProgressUpdate = null)
+        public long CopyDirectory(string sourceDir, string targetDir, List<string> extensionsToEncrypt, bool encrypt, Func<float, bool> onProgressUpdate = null, List<string> blockedProcesses = null)
         {
+            if (blockedProcesses == null)
+                blockedProcesses = new List<string>();
+
             if (!Directory.Exists(sourceDir))
             {
                 return -1;
@@ -153,7 +187,7 @@ namespace EasySave.Model
                 long totalTime = 0;
 
                 var priorityExtensions = extensionsToEncrypt ?? new List<string>();
-                CopyWithPriorityEnforcement(files.ToList(), priorityExtensions);
+                CopyWithPriorityEnforcement(files.ToList(), priorityExtensions, blockedProcesses);
 
                 foreach (string file in files)
                 {
@@ -162,11 +196,27 @@ namespace EasySave.Model
 
                     bool encryptFile = encrypt && ShouldEncrypt(file, extensionsToEncrypt);
 
-                    long fileTime = CopyFile(file, targetPath, encryptFile);
-
-                    if (fileTime >= 0)
+                    try
                     {
-                        totalTime += fileTime;
+                        // Check if any blocked process is running before each file copy
+                        if (blockedProcesses != null && _businessSoftwareManager.IsBusinessSoftwareRunning(blockedProcesses))
+                        {
+                            // If a blocked process is running, we need to pause by throwing an exception
+                            throw new BlockedProcessRunningException($"Cannot copy file {file}: A blocked process is running");
+                        }
+
+                        long fileTime = CopyFile(file, targetPath, encryptFile, blockedProcesses);
+
+                        if (fileTime >= 0)
+                        {
+                            totalTime += fileTime;
+                        }
+                    }
+                    catch (BlockedProcessRunningException)
+                    {
+                        // This means we need to pause the operation
+                        // The job's execution will handle this properly
+                        return -4; // Special code for blocked process
                     }
 
                     processedFiles++;
@@ -183,6 +233,11 @@ namespace EasySave.Model
 
                 return totalTime;
             }
+            catch (BlockedProcessRunningException)
+            {
+                // This means we need to pause the operation
+                return -4; // Special code for blocked process
+            }
             catch (Exception ex)
             {
                 _logger.LogError(null, $"Error copying directory {sourceDir} to {targetDir}: {ex.Message}");
@@ -190,14 +245,20 @@ namespace EasySave.Model
             }
         }
 
-        private void CopyWithPriorityEnforcement(List<string> files, List<string> priorityExtensions)
+        private void CopyWithPriorityEnforcement(List<string> files, List<string> priorityExtensions, List<string> blockedProcesses = null)
         {
             // Process files by extension priority order
             foreach (var ext in priorityExtensions)
             {
                 foreach (var file in files.Where(f => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
                 {
-                    CopyFile(file, /*destination*/"", false);
+                    // Check for blocked processes before each operation
+                    if (blockedProcesses != null && _businessSoftwareManager.IsBusinessSoftwareRunning(blockedProcesses))
+                    {
+                        throw new BlockedProcessRunningException($"Priority file processing paused: A blocked process is running");
+                    }
+
+                    CopyFile(file, /*destination*/"", false, blockedProcesses);
                     MarkPriorityFileCopied(file);
                 }
             }
@@ -207,11 +268,17 @@ namespace EasySave.Model
                 bool isPriority = priorityExtensions.Any(ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
                 if (!isPriority)
                 {
+                    // Check for blocked processes
+                    if (blockedProcesses != null && _businessSoftwareManager.IsBusinessSoftwareRunning(blockedProcesses))
+                    {
+                        throw new BlockedProcessRunningException($"Non-priority file processing paused: A blocked process is running");
+                    }
+
                     while (PriorityFilesRemaining())
                     {
                         Thread.Sleep(100);
                     }
-                    CopyFile(file, /*destination*/"", false);
+                    CopyFile(file, /*destination*/"", false, blockedProcesses);
                 }
             }
         }
@@ -235,6 +302,12 @@ namespace EasySave.Model
             }
 
             return extensionsToEncrypt.Any(ext => ext.Equals(extension, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Add a new exception class for blocked process situations
+        public class BlockedProcessRunningException : Exception
+        {
+            public BlockedProcessRunningException(string message) : base(message) { }
         }
     }
 }

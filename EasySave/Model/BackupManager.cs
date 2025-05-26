@@ -15,13 +15,16 @@ using System.Threading;
 // ...existing code...
 namespace EasySave.Model
 {
-    public class BackupManager
+    public class BackupManager : IDisposable
     {
         private List<BackupJob> backupJobs = new();
         private readonly ConfigManager _configManager;
         private readonly string _jobsConfigPath;
         private readonly Logger _logger;
         private readonly FileManager _fileManager;
+        private readonly BusinessSoftwareManager _businessSoftwareManager;
+        private readonly BlockedProcessMonitor _blockedProcessMonitor;
+        private bool _isPausedDueToBlockedProcess = false;
         // Track running tasks for each job
         private readonly ConcurrentDictionary<string, Task> _runningTasks = new();
 
@@ -35,6 +38,7 @@ namespace EasySave.Model
         {
             _configManager = new ConfigManager();
             _logger = new Logger();
+            _businessSoftwareManager = new BusinessSoftwareManager();
 
             // Initialize FileManager with a new CryptoSoftManager
             _fileManager = new FileManager(
@@ -45,6 +49,10 @@ namespace EasySave.Model
             _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
             LoadJobs();
+
+            // Initialize and set up the blocked process monitor
+            _blockedProcessMonitor = new BlockedProcessMonitor(_businessSoftwareManager);
+            _blockedProcessMonitor.BlockedProcessStateChanged += OnBlockedProcessStateChanged;
         }
 
         // Constructor with FileManager dependency
@@ -53,10 +61,15 @@ namespace EasySave.Model
             _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
             _configManager = new ConfigManager();
             _logger = logger ?? new Logger();
+            _businessSoftwareManager = new BusinessSoftwareManager();
 
             _jobsConfigPath = Path.Combine(@"C:\EasySave\Config", "jobs.json");
             Directory.CreateDirectory(Path.GetDirectoryName(_jobsConfigPath));
             LoadJobs();
+
+            // Initialize and set up the blocked process monitor
+            _blockedProcessMonitor = new BlockedProcessMonitor(_businessSoftwareManager);
+            _blockedProcessMonitor.BlockedProcessStateChanged += OnBlockedProcessStateChanged;
         }
 
         // Access the CryptoSoftManager from the FileManager
@@ -111,17 +124,28 @@ namespace EasySave.Model
             BackupJob job = GetBackupJob(name);
             if (job != null)
             {
+                // Check for blocked processes before launching
+                if (_businessSoftwareManager.IsBusinessSoftwareRunning(job.BlockedProcesses))
+                {
+                    List<string> runningBlocked = _businessSoftwareManager.GetRunningBlockedProcesses(job.BlockedProcesses);
+                    _logger.LogError(job.Name, $"Cannot start job: Blocked process(es) running: {string.Join(", ", runningBlocked)}", job.LogFormat);
+                    return false;
+                }
+
+                // Register the job with the blocked process monitor
+                _blockedProcessMonitor.RegisterJob(job.Name, job.BlockedProcesses);
+
                 // Get the list of files to transfer for this job
                 var filesToTransfer = job.GetFilesToTransfer(); // You may need to implement this method
 
                 job.SetFileManager(_fileManager);
-                
+
                 // Launch job in a background task
                 var jobTask = Task.Run(() => job.Execute());
-                
+
                 // Store the task in the concurrent dictionary
                 _runningTasks[name] = jobTask;
-                
+
                 // Return true to indicate the job was launched successfully
                 return true;
             }
@@ -130,6 +154,17 @@ namespace EasySave.Model
 
         public bool ExecuteAllBackupJobs()
         {
+            // Check if any blocked process is running for any job
+            foreach (var job in backupJobs)
+            {
+                if (_businessSoftwareManager.IsBusinessSoftwareRunning(job.BlockedProcesses))
+                {
+                    List<string> runningBlocked = _businessSoftwareManager.GetRunningBlockedProcesses(job.BlockedProcesses);
+                    _logger.LogError("BackupManager", $"Cannot start all jobs: Blocked process(es) running: {string.Join(", ", runningBlocked)}");
+                    return false;
+                }
+            }
+
             // Gather all priority files from all jobs, using the current (ordered) priority extensions
             var priorityExtensions = _configManager.GetPriorityExtensions();
             var allPriorityFiles = new List<string>();
@@ -146,14 +181,17 @@ namespace EasySave.Model
 
             foreach (BackupJob job in backupJobs)
             {
+                // Register each job with the blocked process monitor
+                _blockedProcessMonitor.RegisterJob(job.Name, job.BlockedProcesses);
+
                 job.SetFileManager(_fileManager);
-                
+
                 // Create a task for each job
                 var jobTask = Task.Run(() => job.Execute());
-                
+
                 // Store the task reference
                 _runningTasks[job.Name] = jobTask;
-                
+
                 // Add to our tracking list
                 jobTasks.Add(jobTask);
             }
@@ -176,16 +214,16 @@ namespace EasySave.Model
             {
                 // Ensure the FileManager is set before resuming
                 job.SetFileManager(_fileManager);
-                
+
                 // First change the job state with Resume()
                 job.Resume();
-                
+
                 System.Diagnostics.Debug.WriteLine($"[BackupManager] Job '{job.Name}' resumed successfully.");
-                
+
                 // After resuming, create a new task to continue execution
                 // This keeps the execution model consistent with ExecuteBackupJob
                 var jobTask = Task.Run(() => job.Execute());
-                
+
                 // Store the task in the concurrent dictionary to track it
                 _runningTasks[name] = jobTask;
             }
@@ -200,26 +238,46 @@ namespace EasySave.Model
             BackupJob job = GetBackupJob(name);
             if (job != null)
             {
-                // Ensure the FileManager is set before resuming
-                job.SetFileManager(_fileManager);
+                try
+                {
+                    // Ensure the FileManager is set before resuming
+                    job.SetFileManager(_fileManager);
 
-                // Set state/flags for resume
-                job.PrepareResume();
+                    // Set state/flags for resume
+                    job.PrepareResume();
 
-                System.Diagnostics.Debug.WriteLine($"[BackupManager] Job '{job.Name}' resume requested.");
+                    System.Diagnostics.Debug.WriteLine($"[BackupManager] Job '{job.Name}' resume requested.");
 
-                // Start a new Task to continue execution using Execute (not ResumeExecution)
-                var jobTask = Task.Run(() => job.Execute());
+                    // Start a new Task to continue execution using Execute (not ResumeExecution)
+                    // Pass BlockedProcesses to Execute so FileManager can check for them
+                    var blockedProcesses = job.BlockedProcesses ?? new List<string>();
 
-                // Store the task in the concurrent dictionary to track it
-                _runningTasks[name] = jobTask;
+                    var jobTask = Task.Run(() => job.Execute(blockedProcesses));
+
+                    // Store the task in the concurrent dictionary to track it
+                    _runningTasks[name] = jobTask;
+
+                    // Update job status in logger/UI
+                    _logger.UpdateJobStatus(job.Name, job.State, job.Progress, job.LogFormat);
+                }
+                catch (Exception ex)
+                {
+                    // Log and set job state to FAILED if resumption fails
+                    job.State = Enums.JobState.FAILED;
+                    _logger.LogError(job.Name, $"Error resuming job: {ex.Message}", job.LogFormat);
+                    _logger.UpdateJobStatus(job.Name, job.State, job.Progress, job.LogFormat);
+                }
             }
         }
 
         public void StopJob(string name)
         {
             BackupJob job = GetBackupJob(name);
-            job?.Stop();
+            if (job != null)
+            {
+                _blockedProcessMonitor.UnregisterJob(job.Name);
+                job.Stop();
+            }
         }
 
         public void SaveJobs()
@@ -368,6 +426,51 @@ namespace EasySave.Model
             }
         }
 
+        private void OnBlockedProcessStateChanged(object sender, BlockedProcessEventArgs e)
+        {
+            if (e.IsBlocked && !_isPausedDueToBlockedProcess)
+            {
+                // Pause all running jobs and log the reason
+                _isPausedDueToBlockedProcess = true;
+                string runningProcesses = string.Join(", ", e.RunningProcesses);
+                _logger.LogError("BackupManager", $"All jobs paused due to blocked process(es) running: {runningProcesses}");
+
+                foreach (BackupJob job in backupJobs)
+                {
+                    if (job.GetState() == Enums.JobState.RUNNING)
+                    {
+                        job.Pause();
+                        _logger.LogError(job.Name, $"Job paused due to blocked process(es): {runningProcesses}", job.LogFormat);
+                        _logger.UpdateJobStatus(job.Name, job.State, job.Progress, job.LogFormat);
+                    }
+                }
+            }
+            else if (!e.IsBlocked && _isPausedDueToBlockedProcess)
+            {
+                // Resume all jobs that were paused due to blocked processes
+                _isPausedDueToBlockedProcess = false;
+                _logger.LogError("BackupManager", "Blocked processes no longer running, resuming jobs");
+
+                foreach (BackupJob job in backupJobs)
+                {
+                    if (job.GetState() == Enums.JobState.PAUSED)
+                    {
+                        try
+                        {
+                            ResumeBackupJob(job.Name);
+                            _logger.LogError(job.Name, "Job automatically resumed after blocked process closed", job.LogFormat);
+                        }
+                        catch (Exception ex)
+                        {
+                            job.State = Enums.JobState.FAILED;
+                            _logger.LogError(job.Name, $"Error auto-resuming job: {ex.Message}", job.LogFormat);
+                            _logger.UpdateJobStatus(job.Name, job.State, job.Progress, job.LogFormat);
+                        }
+                    }
+                }
+            }
+        }
+
         private class JobData
         {
             public string Name { get; set; }
@@ -380,6 +483,11 @@ namespace EasySave.Model
             public bool EncryptFiles { get; set; }
             public List<string> ExtensionsToEncrypt { get; set; }
             public List<string> BlockedProcesses { get; set; }
+        }
+
+        public void Dispose()
+        {
+            _blockedProcessMonitor?.Dispose();
         }
     }
 
