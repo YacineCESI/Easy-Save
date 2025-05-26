@@ -114,9 +114,6 @@ namespace EasySave.Model
                 // Get the list of files to transfer for this job
                 var filesToTransfer = job.GetFilesToTransfer(); // You may need to implement this method
 
-                // Bandwidth check
-                EnsureCanStartBackupJob(filesToTransfer);
-
                 job.SetFileManager(_fileManager);
                 
                 // Launch job in a background task
@@ -166,43 +163,6 @@ namespace EasySave.Model
             return true;
         }
 
-        public async Task<bool> WaitForJobCompletion(string name, int timeoutMilliseconds = -1)
-        {
-            if (_runningTasks.TryGetValue(name, out var task))
-            {
-                if (timeoutMilliseconds < 0)
-                {
-                    await task.ConfigureAwait(false);
-                    return true;
-                }
-                else
-                {
-                    var completedTask = await Task.WhenAny(task, Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                    return completedTask == task;
-                }
-            }
-            return false;
-        }
-
-        public async Task<bool> WaitForAllJobs(int timeoutMilliseconds = -1)
-        {
-            var tasks = _runningTasks.Values.ToArray();
-            
-            if (tasks.Length == 0)
-                return true;
-                
-            if (timeoutMilliseconds < 0)
-            {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-                return true;
-            }
-            else
-            {
-                var completedTask = await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                return completedTask != Task.Delay(timeoutMilliseconds);
-            }
-        }
-
         public void PauseJob(string name)
         {
             BackupJob job = GetBackupJob(name);
@@ -212,7 +172,48 @@ namespace EasySave.Model
         public void ResumeJob(string name)
         {
             BackupJob job = GetBackupJob(name);
-            job?.Resume();
+            if (job != null)
+            {
+                // Ensure the FileManager is set before resuming
+                job.SetFileManager(_fileManager);
+                
+                // First change the job state with Resume()
+                job.Resume();
+                
+                System.Diagnostics.Debug.WriteLine($"[BackupManager] Job '{job.Name}' resumed successfully.");
+                
+                // After resuming, create a new task to continue execution
+                // This keeps the execution model consistent with ExecuteBackupJob
+                var jobTask = Task.Run(() => job.Execute());
+                
+                // Store the task in the concurrent dictionary to track it
+                _runningTasks[name] = jobTask;
+            }
+        }
+
+        /// <summary>
+        /// Resumes a paused backup job using the new ResumeExecution method.
+        /// </summary>
+        /// <param name="name">The name of the job to resume.</param>
+        public void ResumeBackupJob(string name)
+        {
+            BackupJob job = GetBackupJob(name);
+            if (job != null)
+            {
+                // Ensure the FileManager is set before resuming
+                job.SetFileManager(_fileManager);
+
+                // Set state/flags for resume
+                job.PrepareResume();
+
+                System.Diagnostics.Debug.WriteLine($"[BackupManager] Job '{job.Name}' resume requested.");
+
+                // Start a new Task to continue execution using Execute (not ResumeExecution)
+                var jobTask = Task.Run(() => job.Execute());
+
+                // Store the task in the concurrent dictionary to track it
+                _runningTasks[name] = jobTask;
+            }
         }
 
         public void StopJob(string name)
@@ -225,7 +226,9 @@ namespace EasySave.Model
         {
             try
             {
-                var jobsData = backupJobs.Select(j => new
+                //if (job.State == Enums.JobState.PAUSED) { }
+                    var jobsData = backupJobs.Select(j => new
+
                 {
                     j.Name,
                     j.SourceDirectory,
@@ -296,23 +299,7 @@ namespace EasySave.Model
             }
         }
 
-        private bool CanTransferLargeFile(long fileSizeBytes)
-        {
-            return fileSizeBytes <= BandwidthLimitKB * 1024 || !_largeFileTransferring;
-        }
-
-        private void MarkLargeFileTransferStart(long fileSizeBytes)
-        {
-            if (fileSizeBytes > BandwidthLimitKB * 1024)
-            {
-                lock (_largeFileLock)
-                {
-                    _largeFileTransferring = true;
-                }
-            }
-        }
-
-        private void MarkLargeFileTransferEnd(long fileSizeBytes)
+        public void WaitForLargeFileSlot(long fileSizeBytes)
         {
             if (fileSizeBytes > BandwidthLimitKB * 1024)
             {

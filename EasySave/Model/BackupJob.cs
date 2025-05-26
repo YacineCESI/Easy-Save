@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using EasySave.Model.Enums;
 
 namespace EasySave.Model
@@ -94,11 +95,18 @@ namespace EasySave.Model
                 if (_fileManager == null)
                     throw new InvalidOperationException("FileManager must be set before executing the job.");
 
-                // Reset progress and update state
-                Progress = 0;
-                State = JobState.RUNNING;
-                LastRunTime = DateTime.Now;
-                
+                // Only reset progress and state if not resuming from PAUSED
+                if (State != JobState.PAUSED)  // this will make sure we don't reset progress if resuming because of the confusion with the PAUSED state and the RUNNING state
+                {
+                    Progress = 0;
+                    State = JobState.RUNNING;
+                    LastRunTime = DateTime.Now;
+                }
+                else
+                {
+                    State = JobState.RUNNING;
+                }
+
                 _isPaused = false;
                 _isStopped = false;
             }
@@ -118,27 +126,20 @@ namespace EasySave.Model
             // Define thread-safe progress update callback
             bool progressCallback(float progress)
             {
-                // Update the job's progress in a thread-safe manner
                 lock (_lockObject)
                 {
                     Progress = progress;
-                    
-                    // Check if the operation should be cancelled
                     if (_isPaused || _isStopped)
                     {
                         return false;
                     }
                 }
-                
-                // Log the progress update with the selected format
                 _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
-                
                 return true;
             }
 
             try
             {
-                // Use EncryptFiles and ExtensionsToEncrypt for this job
                 long result = _fileManager.CopyDirectory(
                     SourceDirectory,
                     TargetDirectory,
@@ -147,13 +148,12 @@ namespace EasySave.Model
                     progressCallback
                 );
                 
-                // Update state based on result - thread safe
                 lock (_lockObject)
                 {
                     if (result >= 0 && !_isStopped)
                     {
                         State = JobState.COMPLETED;
-                        Progress = 100.0f; // Ensure 100% on completion
+                        Progress = 100.0f;
                     }
                     else if (_isPaused)
                     {
@@ -170,7 +170,6 @@ namespace EasySave.Model
                     }
                 }
                 
-                // Final status update with the selected format
                 _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
                 _logger.LogError(Name, $"Job execution completed - Final state: {State}, Progress: {Progress}%", LogFormat);
                 
@@ -212,6 +211,8 @@ namespace EasySave.Model
                     State = JobState.RUNNING;
                     _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
                     _logger.LogError(Name, "Job resumed", LogFormat);
+                    System.Diagnostics.Debug.WriteLine($"[BackupJOb] Job resumed successfully.");
+                    // Do NOT call Execute() or start a new Task here!
                 }
             }
         }
@@ -300,6 +301,40 @@ namespace EasySave.Model
                 else
                     return new List<string>();
             }
+        }
+
+        // we have been obligated to add this method that handels the Resume (play) for our job backups to avoid the confusion in the Excute function because it leads to reset the backup 
+
+        /// <summary>
+        /// Resumes the job by setting state/flags only. Actual copy operation must be started by BackupManager.
+        /// </summary>
+        public void PrepareResume()
+        {
+            lock (_lockObject)
+            {
+                if (_fileManager == null)
+                    throw new InvalidOperationException("FileManager must be set before resuming the job.");
+
+                if (State != JobState.PAUSED)
+                    return; // Only resume if paused
+
+                _isPaused = false;
+                _isStopped = false;
+                State = JobState.RUNNING;
+                _logger.UpdateJobStatus(Name, State, Progress, LogFormat);
+                _logger.LogError(Name, "Job resumed (PrepareResume)", LogFormat);
+            }
+        }
+
+        /// <summary>
+        /// (No longer used externally) Resumes the execution of a paused backup job, continuing from its last state/progress.
+        /// </summary>
+        /// <returns>True if resumed and completed, false otherwise.</returns>
+        [Obsolete("Use PrepareResume() and then call Execute() in a new Task from BackupManager.")]
+        public bool ResumeExecution()
+        {
+            PrepareResume();
+            return Execute();
         }
     }
 }

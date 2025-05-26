@@ -207,4 +207,7 @@
   <data name="menuRemoveJob" xml:space="preserve">
     <value>Supprimer </value>
   </data>
+  <data name="jobResumed" xml:space="preserve">
+    <value>Reprendre</value>
+  </data>
 </root>

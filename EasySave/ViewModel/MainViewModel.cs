@@ -137,6 +137,9 @@ namespace EasySave.ViewModel
         public ICommand ResumeJobCommand { get; }
         public ICommand StopJobCommand { get; }
 
+        // Example: expose job progress and commands to the UI
+        public ObservableCollection<BackupJobViewModel> Jobs { get; set; }
+
         public MainViewModel(BackupManager backupManager, LanguageManager languageManager,
             BusinessSoftwareManager businessSoftwareManager, ConfigManager configManager)
         {
@@ -192,25 +195,28 @@ namespace EasySave.ViewModel
                 if (job == null)
                     return;
 
-                // Check if any of this job's blocked processes are running
                 var blockedProcesses = job.BlockedProcesses?.ToList() ?? new List<string>();
                 var runningProcesses = _businessSoftwareManager.GetRunningBlockedProcesses(blockedProcesses);
 
                 if (runningProcesses.Count > 0)
                 {
-                    // Notify that blocked processes are running
                     BlockedProcessesDetected?.Invoke(this, runningProcesses);
-
-                    // Stop any ongoing job with this name
                     _backupManager.StopJob(job.Name);
-
                     return;
                 }
 
-                // Execute the job in parallel mode (BackupManager now handles this internally)
-                _backupManager.ExecuteBackupJob(job.Name);
+                // Vérifiez l'état du job
+                if (job.State == Model.Enums.JobState.PAUSED)
+                {
+                    _backupManager.ResumeBackupJob(job.Name); // Use ResumeBackupJob
+                }
+                else
+                {
+                    _backupManager.ExecuteBackupJob(job.Name);
+                }
             },
-            job => job != null);
+     job => job != null);
+
 
             // Modified RunAllJobsCommand to respect Can Execute condition
             RunAllJobsCommand = new RelayCommand(ExecuteAllJobs, () => BackupJobs.Count > 0);
@@ -245,12 +251,17 @@ namespace EasySave.ViewModel
 
                     if (runningProcesses.Count > 0)
                     {
-                        // Notify that blocked processes are running
                         BlockedProcessesDetected?.Invoke(this, runningProcesses);
                         return;
                     }
 
-                    _backupManager.ResumeJob(job.Name);
+                    // Only resume if not already running
+                    var modelJob = _backupManager.GetBackupJob(job.Name);
+                    if (modelJob != null && modelJob.State == Model.Enums.JobState.PAUSED)
+                    {
+                        _backupManager.ResumeBackupJob(job.Name); // Use ResumeBackupJob
+                        System.Diagnostics.Debug.WriteLine($"[MainViewModel] Job '{job.Name}' resumed using ResumeBackupJob.");
+                    }
                 }
             });
 
@@ -272,6 +283,13 @@ namespace EasySave.ViewModel
                     OnPropertyChanged(nameof(PriorityExtensionsDisplay));
                 }
             };
+
+            // Initialize Jobs and bind to BackupManager
+            // Fix the incorrect assignment of BackupManager to BackupManager property in BackupJobViewModel
+            Jobs = new ObservableCollection<BackupJobViewModel>(
+                backupManager.GetAllJobs().Select(j => new BackupJobViewModel(j) { BackupManager = _configManager })
+            );
+
         }
 
         // Helper method to update the properties
@@ -302,7 +320,7 @@ namespace EasySave.ViewModel
             var runningBlockedProcesses = GetRunningBlockedProcessesForSelectedJob();
             if (runningBlockedProcesses.Count > 0)
             {
-                 BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
+                BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
                 _backupManager.StopJob(SelectedJob.Name);
                 return;
             }
@@ -310,7 +328,8 @@ namespace EasySave.ViewModel
             try
             {
                 // Bandwidth check and job execution
-                RunJobCommand.Execute(SelectedJob);
+                var result = _backupManager.ExecuteBackupJob(SelectedJob.Name);
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] ExecuteSelectedJob result: {result}");
             }
             catch (BandwidthLimitExceededException ex)
             {
@@ -358,7 +377,8 @@ namespace EasySave.ViewModel
             }
 
             // Safe to execute all jobs in parallel
-            _backupManager.ExecuteAllBackupJobs();
+            var result = _backupManager.ExecuteAllBackupJobs();
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] ExecuteAllJobs result: {result}");
         }
 
         // Add an event to notify MainWindow of blocked processes
@@ -389,6 +409,22 @@ namespace EasySave.ViewModel
             {
                 BackupJobs.Add(new BackupJobViewModel(job));
             }
+        }
+
+        // Add these public methods for MainWindow to call
+        public void PauseJob(BackupJobViewModel job)
+        {
+            PauseJobCommand.Execute(job);
+        }
+
+        public void ResumeJob(BackupJobViewModel job)
+        {
+            ResumeJobCommand.Execute(job);
+        }
+
+        public void StopJob(BackupJobViewModel job)
+        {
+            StopJobCommand.Execute(job);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

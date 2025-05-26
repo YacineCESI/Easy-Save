@@ -28,7 +28,7 @@
             <Setter Property="Background" Value="#007ACC"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
-        
+
         <!-- Add the converter resource -->
         <converters:StringLocalizationConverter x:Key="LocalizeString" />
     </Window.Resources>
@@ -132,31 +132,34 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- First row of buttons -->
+                    <!-- Run Button -->
                     <Button Grid.Row="0" Grid.Column="0" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRunJob}" 
                             Click="RunJob_Click"
                             Style="{StaticResource ActionButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-                    <Button Grid.Row="0" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStarted}" 
+                    <!-- Pause Button -->
+                    <Button Grid.Row="0" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
                             Command="{Binding PauseJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-                    <Button Grid.Row="0" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
-                            Command="{Binding ResumeJobCommand}"
-                            CommandParameter="{Binding SelectedJob}"
+                    <!-- Resume Button -->
+                    <Button Grid.Row="0" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobResumed}" 
+                            Click="ResumeJob_Click"
+                 
                             Style="{StaticResource ButtonStyle}"
-                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}" Margin="5,5,5,5" />
 
+                    <!-- Remove Button -->
                     <Button Grid.Row="0" Grid.Column="3" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRemoveJob}" 
                             Command="{Binding RemoveJobCommand}"
                             CommandParameter="{Binding SelectedJob.Name}"
                             Style="{StaticResource ButtonStyle}"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
-                    
-                    <!-- Second row of buttons (new) -->
+
+                    <!-- Stop Button -->
                     <Button Grid.Row="1" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStopped}" 
                             Command="{Binding StopJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
@@ -164,6 +167,7 @@
                             Margin="5,10,5,0"
                             IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
+                    <!-- Exit Button -->
                     <Button Grid.Row="1" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuExit}" 
                             Click="ExitButton_Click"
                             Style="{StaticResource ButtonStyle}"
@@ -249,7 +253,7 @@
                                 <ProgressBar Grid.Row="0" Height="20" 
                                             Value="{Binding SelectedJob.Progress, Mode=OneWay}"
                                             Maximum="100"/>
-                                
+
                             </Grid>
 
                             <!-- Blocked Processes -->

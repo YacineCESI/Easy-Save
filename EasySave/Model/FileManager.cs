@@ -13,6 +13,9 @@ namespace EasySave.Model
         private readonly Logger _logger;
         private static SemaphoreSlim _fileOperationSemaphore = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
 
+        // Add reference to BackupManager for bandwidth/large file coordination
+        private BackupManager _backupManager;
+
         // Global static set to track remaining priority files across all jobs
         private static readonly ConcurrentDictionary<string, byte> GlobalPriorityFiles = new();
 
@@ -20,6 +23,12 @@ namespace EasySave.Model
         {
             _cryptoSoftManager = cryptoSoftManager ?? throw new ArgumentNullException(nameof(cryptoSoftManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        // New: Set BackupManager reference (call this after construction)
+        public void SetBackupManager(BackupManager backupManager)
+        {
+            _backupManager = backupManager;
         }
 
         public CryptoSoftManager GetCryptoSoftManager()

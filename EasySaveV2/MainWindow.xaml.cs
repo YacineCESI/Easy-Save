@@ -343,5 +343,29 @@ namespace EasySaveV2
                 Application.Current.Shutdown();
             }
         }
+
+        private void PauseJob_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.SelectedJob != null)
+                _viewModel.PauseJob(_viewModel.SelectedJob);
+        }
+
+        private void ResumeJob_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.SelectedJob != null)
+            {
+                _viewModel.ResumeJob(_viewModel.SelectedJob);
+                
+                // After resuming, restart the job monitoring to track its progress
+                StartJobStatusMonitoring(_viewModel.SelectedJob.Name);
+            }
+        }
+
+        private void StopJob_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.SelectedJob != null)
+                _viewModel.StopJob(_viewModel.SelectedJob);
+        }
+
     }
 }
