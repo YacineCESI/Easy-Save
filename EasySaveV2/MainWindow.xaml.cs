@@ -21,22 +21,22 @@ namespace EasySaveV2
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;
-        private DispatcherTimer _progressUpdateTimer;
+        private System.Windows.Threading.DispatcherTimer _progressUpdateTimer;
+        private readonly ProcessMonitor _processMonitor;
+        private readonly LanguageManager _languageManager;
 
         public MainWindow()
         {
             InitializeComponent();
 
-           
             var configManager = new ConfigManager();
-            var languageManager = new LanguageManager();
+            _languageManager = new LanguageManager();
             var businessSoftwareManager = new BusinessSoftwareManager();
             var backupManager = new BackupManager();
 
-        
             _viewModel = new MainViewModel(
                 backupManager,
-                languageManager,
+                _languageManager,
                 businessSoftwareManager,
                 configManager);
 
@@ -44,16 +44,24 @@ namespace EasySaveV2
 
             JobsListBox.SelectionChanged += JobsListBox_SelectionChanged;
 
-      
             _viewModel.LanguageChanged += ViewModel_LanguageChanged;
-
             _viewModel.BlockedProcessesDetected += ViewModel_BlockedProcessesDetected;
 
-      
             this.Title = _viewModel.GetLocalizedString("appTitle");
+
+            // Initialize the timer
+            _progressUpdateTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _progressUpdateTimer.Tick += ProgressUpdateTimer_Tick;
+            _progressUpdateTimer.Start();
+
+            _processMonitor = new ProcessMonitor();
+            _processMonitor.BlockedProcessDetected += ProcessMonitor_BlockedProcessDetected;
         }
 
-        private void ViewModel_LanguageChanged(object sender, EventArgs e)
+        private void ViewModel_LanguageChanged(object? sender, EventArgs e)
         {
             // Force refresh the entire UI when language changes
             // This is necessary because some bindings might not update automatically
@@ -123,10 +131,16 @@ namespace EasySaveV2
             }
         }
 
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            // This is a generic handler for buttons that don't need specific logic
+            // The actual functionality is handled by the Command binding
+        }
+
         private void RunAllJobs_Click(object sender, RoutedEventArgs e)
         {
-           
-            ExecuteAllJobs();
+            // The actual functionality is handled by the Command binding
+            // This is just a placeholder to satisfy the XAML binding
         }
 
         private void RunJob_Click(object sender, RoutedEventArgs e)
@@ -139,7 +153,6 @@ namespace EasySaveV2
         /// </summary>
         private void ExecuteSelectedJob()
         {
-        
             StopProgressUpdates();
 
             if (_viewModel.SelectedJob == null)
@@ -150,7 +163,7 @@ namespace EasySaveV2
             _viewModel.ExecuteSelectedJob();
 
             // Set up the timer to update the UI
-            _progressUpdateTimer = new DispatcherTimer
+            _progressUpdateTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(100)
             };
@@ -163,17 +176,14 @@ namespace EasySaveV2
 
                     if (job != null)
                     {
-                 
                         _viewModel.SelectedJob.Progress = job.Progress;
                         _viewModel.SelectedJob.State = job.State;
                         _viewModel.SelectedJob.LastRunTime = job.LastRunTime;
 
-              
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.Progress));
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.State));
                         _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.LastRunTime));
 
-                   
                         _viewModel.OnPropertyChanged("SelectedJob");
 
                         if (job.State == JobState.COMPLETED ||
@@ -208,7 +218,7 @@ namespace EasySaveV2
 
             _viewModel.ExecuteAllJobs();
 
-            _progressUpdateTimer = new DispatcherTimer
+            _progressUpdateTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(200)
             };
@@ -229,7 +239,6 @@ namespace EasySaveV2
                             jobVM.State = job.State;
                             jobVM.LastRunTime = job.LastRunTime;
 
-                          
                             jobVM.OnPropertyChanged(nameof(jobVM.Progress));
                             jobVM.OnPropertyChanged(nameof(jobVM.State));
                             jobVM.OnPropertyChanged(nameof(jobVM.LastRunTime));
@@ -281,14 +290,17 @@ namespace EasySaveV2
         /// <summary>
         /// Show a popup if a backup job is blocked due to running processes
         /// </summary>
-        private void ViewModel_BlockedProcessesDetected(object sender, List<string> runningBlockedProcesses)
+        private void ViewModel_BlockedProcessesDetected(object? sender, List<string> runningBlockedProcesses)
         {
-            if (runningBlockedProcesses != null && runningBlockedProcesses.Count > 0)
+            if (runningBlockedProcesses != null && runningBlockedProcesses.Any())
             {
-                string processes = string.Join(", ", runningBlockedProcesses);
-                string message = $"Cannot run backup job(s) because the following blocked processes are running: {processes}. " +
-                                 "Please close these applications before running the backup.";
-                MessageBox.Show(message, "Blocked Processes Running", MessageBoxButton.OK, MessageBoxImage.Warning);
+                var processList = string.Join(", ", runningBlockedProcesses);
+                MessageBox.Show(
+                    $"The following blocked processes are running: {processList}",
+                    "Blocked Processes Detected",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
             }
         }
 
@@ -324,6 +336,16 @@ namespace EasySaveV2
                 // Close the application
                 Application.Current.Shutdown();
             }
+        }
+
+        private void ProgressUpdateTimer_Tick(object sender, EventArgs e)
+        {
+            // Implementation of the timer tick event
+        }
+
+        private void ProcessMonitor_BlockedProcessDetected(object sender, List<string> runningBlockedProcesses)
+        {
+            // Implementation of the process monitor event
         }
     }
 }
