@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
+using System.Threading;
+   
 namespace EasySave.Model
 {
     public class FileManager
     {
         private readonly CryptoSoftManager _cryptoSoftManager;
         private readonly Logger _logger;
+        private static SemaphoreSlim _fileOperationSemaphore = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
 
         public FileManager(CryptoSoftManager cryptoSoftManager, Logger logger)
         {
@@ -30,63 +32,67 @@ namespace EasySave.Model
 
             try
             {
-               
                 Directory.CreateDirectory(Path.GetDirectoryName(destination));
-                
-              
+
                 var fileInfo = new FileInfo(source);
                 var fileSize = fileInfo.Length;
-                
-                
+
                 var startTime = DateTime.Now;
-                
-                
-                File.Copy(source, destination, true);
-                
-                
+
+                _fileOperationSemaphore.Wait();
+                try
+                {
+                    File.Copy(source, destination, true);
+                }
+                finally
+                {
+                    _fileOperationSemaphore.Release();
+                }
+
                 var transferTime = (long)(DateTime.Now - startTime).TotalMilliseconds;
-                
-               
+
                 _logger.LogAction(null, source, destination, fileSize, transferTime, 0);
-                
-               
+
                 long encryptionTime = 0;
                 if (encrypt)
                 {
                     var tempPath = destination + ".tmp";
                     if (File.Exists(destination))
                     {
-                       
-                        File.Move(destination, tempPath, true);
-                     
-                        encryptionTime = _cryptoSoftManager.EncryptFile(tempPath, destination);
-                        
-                        
-                        _logger.LogEncryptionDetails(destination, encryptionTime);
-                        
-                       
-                        if (encryptionTime > 0 && File.Exists(tempPath))
+                        _fileOperationSemaphore.Wait();
+                        try
                         {
-                            File.Delete(tempPath);
-                        }
-                        else if (encryptionTime < 0)
-                        {
-                            
-                            if (File.Exists(tempPath))
+                            File.Move(destination, tempPath, true);
+                            encryptionTime = _cryptoSoftManager.EncryptFile(tempPath, destination);
+
+                            _logger.LogEncryptionDetails(destination, encryptionTime);
+
+                            if (encryptionTime > 0 && File.Exists(tempPath))
                             {
-                                File.Move(tempPath, destination, true);
+                                File.Delete(tempPath);
                             }
-                            _logger.LogError(null, $"Encryption failed for {destination}: {encryptionTime}");
+                            else if (encryptionTime < 0)
+                            {
+                                if (File.Exists(tempPath))
+                                {
+                                    File.Move(tempPath, destination, true);
+                                }
+                                _logger.LogError(null, $"Encryption failed for {destination}: {encryptionTime}");
+                            }
+                        }
+                        finally
+                        {
+                            _fileOperationSemaphore.Release();
                         }
                     }
                 }
-                
+
                 return transferTime + encryptionTime;
             }
             catch (Exception ex)
             {
                 _logger.LogError(null, $"Error copying file {source} to {destination}: {ex.Message}");
-                return -2; 
+                return -2;
             }
         }
 
@@ -94,24 +100,22 @@ namespace EasySave.Model
         {
             if (!Directory.Exists(sourceDir))
             {
-                return -1; 
+                return -1;
             }
 
             try
             {
                 Directory.CreateDirectory(targetDir);
 
-                
                 string[] files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
                 int totalFiles = files.Length;
-                
+
                 if (totalFiles == 0)
                 {
-                    
                     onProgressUpdate?.Invoke(100);
                     return 0;
                 }
-                
+
                 int processedFiles = 0;
                 long totalTime = 0;
 
@@ -120,7 +124,6 @@ namespace EasySave.Model
                     string relativePath = file.Substring(sourceDir.Length + 1);
                     string targetPath = Path.Combine(targetDir, relativePath);
 
-                    
                     bool encryptFile = encrypt && ShouldEncrypt(file, extensionsToEncrypt);
 
                     long fileTime = CopyFile(file, targetPath, encryptFile);
@@ -133,12 +136,11 @@ namespace EasySave.Model
                     processedFiles++;
                     float progress = (float)processedFiles / totalFiles * 100;
 
-                  
                     if (onProgressUpdate != null)
                     {
                         if (!onProgressUpdate(progress))
                         {
-                            return -3; 
+                            return -3;
                         }
                     }
                 }
@@ -148,7 +150,7 @@ namespace EasySave.Model
             catch (Exception ex)
             {
                 _logger.LogError(null, $"Error copying directory {sourceDir} to {targetDir}: {ex.Message}");
-                return -2; // Error during copy
+                return -2;
             }
         }
 
@@ -165,7 +167,6 @@ namespace EasySave.Model
                 return false;
             }
 
-            // Remove the dot from the extension if present
             if (extension.StartsWith("."))
             {
                 extension = extension.Substring(1);

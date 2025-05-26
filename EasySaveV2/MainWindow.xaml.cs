@@ -12,6 +12,8 @@ using System.Windows.Media;
 using System.ComponentModel;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace EasySaveV2
 {
@@ -22,18 +24,17 @@ namespace EasySaveV2
     {
         private readonly MainViewModel _viewModel;
         private DispatcherTimer _progressUpdateTimer;
+        private readonly Dictionary<string, CancellationTokenSource> _jobMonitoringTokens = new();
 
         public MainWindow()
         {
             InitializeComponent();
 
-           
             var configManager = new ConfigManager();
             var languageManager = new LanguageManager();
             var businessSoftwareManager = new BusinessSoftwareManager();
             var backupManager = new BackupManager();
 
-        
             _viewModel = new MainViewModel(
                 backupManager,
                 languageManager,
@@ -44,12 +45,10 @@ namespace EasySaveV2
 
             JobsListBox.SelectionChanged += JobsListBox_SelectionChanged;
 
-      
             _viewModel.LanguageChanged += ViewModel_LanguageChanged;
 
             _viewModel.BlockedProcessesDetected += ViewModel_BlockedProcessesDetected;
 
-      
             this.Title = _viewModel.GetLocalizedString("appTitle");
         }
 
@@ -94,12 +93,12 @@ namespace EasySaveV2
 
         private void JobsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // If a job is selected, automatically run it
-            if (_viewModel.SelectedJob != null)
-            {
-                // Execute the RunJobCommand to start the selected job
-                _viewModel.RunJobCommand.Execute(_viewModel.SelectedJob);
-            }
+            // REMOVE any code like:
+            // _viewModel.ExecuteSelectedJob();
+            // or
+            // _viewModel.RunJobCommand.Execute(_viewModel.SelectedJob);
+            // or
+            // _viewModel.StartJobStatusMonitoring(_viewModel.SelectedJob.Name);
         }
 
         private void CreateJob_Click(object sender, RoutedEventArgs e)
@@ -125,7 +124,6 @@ namespace EasySaveV2
 
         private void RunAllJobs_Click(object sender, RoutedEventArgs e)
         {
-           
             ExecuteAllJobs();
         }
 
@@ -139,7 +137,6 @@ namespace EasySaveV2
         /// </summary>
         private void ExecuteSelectedJob()
         {
-        
             StopProgressUpdates();
 
             if (_viewModel.SelectedJob == null)
@@ -149,54 +146,8 @@ namespace EasySaveV2
 
             _viewModel.ExecuteSelectedJob();
 
-            // Set up the timer to update the UI
-            _progressUpdateTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(100)
-            };
-
-            _progressUpdateTimer.Tick += (s, e) =>
-            {
-                try
-                {
-                    BackupJob job = _viewModel.BackupManager.GetBackupJob(jobName);
-
-                    if (job != null)
-                    {
-                 
-                        _viewModel.SelectedJob.Progress = job.Progress;
-                        _viewModel.SelectedJob.State = job.State;
-                        _viewModel.SelectedJob.LastRunTime = job.LastRunTime;
-
-              
-                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.Progress));
-                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.State));
-                        _viewModel.SelectedJob.OnPropertyChanged(nameof(_viewModel.SelectedJob.LastRunTime));
-
-                   
-                        _viewModel.OnPropertyChanged("SelectedJob");
-
-                        if (job.State == JobState.COMPLETED ||
-                            job.State == JobState.FAILED ||
-                            job.State == JobState.PENDING)
-                        {
-                            StopProgressUpdates();
-                        }
-                    }
-                    else
-                    {
-                        StopProgressUpdates();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Log any exceptions that occur during UI updates
-                    Console.WriteLine($"Error updating job progress: {ex.Message}");
-                    StopProgressUpdates();
-                }
-            };
-
-            _progressUpdateTimer.Start();
+            // Start monitoring the job's progress in the background
+            StartJobStatusMonitoring(jobName);
         }
 
         /// <summary>
@@ -208,66 +159,70 @@ namespace EasySaveV2
 
             _viewModel.ExecuteAllJobs();
 
-            _progressUpdateTimer = new DispatcherTimer
+            // Start monitoring for all jobs
+            foreach (var jobVM in _viewModel.BackupJobs)
             {
-                Interval = TimeSpan.FromMilliseconds(200)
-            };
-
-            _progressUpdateTimer.Tick += (s, e) =>
-            {
-                try
-                {
-                    bool allJobsCompleted = true;
-                    
-                    foreach (var jobVM in _viewModel.BackupJobs)
-                    {
-                        BackupJob job = _viewModel.BackupManager.GetBackupJob(jobVM.Name);
-
-                        if (job != null)
-                        {
-                            jobVM.Progress = job.Progress;
-                            jobVM.State = job.State;
-                            jobVM.LastRunTime = job.LastRunTime;
-
-                          
-                            jobVM.OnPropertyChanged(nameof(jobVM.Progress));
-                            jobVM.OnPropertyChanged(nameof(jobVM.State));
-                            jobVM.OnPropertyChanged(nameof(jobVM.LastRunTime));
-                            
-                            // Check if this job is still running
-                            if (job.State == JobState.RUNNING || job.State == JobState.PAUSED)
-                            {
-                                allJobsCompleted = false;
-                            }
-                        }
-                    }
-
-                    // Force UI refresh if needed (to avoid UI not updating)
-                    _viewModel.OnPropertyChanged("BackupJobs");
-                    
-                    // If SelectedJob is one of the currently running jobs, also update its specific UI
-                    if (_viewModel.SelectedJob != null)
-                    {
-                        _viewModel.OnPropertyChanged("SelectedJob");
-                    }
-
-                    if (allJobsCompleted)
-                    {
-                        StopProgressUpdates();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error updating job progress: {ex.Message}");
-                    StopProgressUpdates();
-                }
-            };
-
-            _progressUpdateTimer.Start();
+                StartJobStatusMonitoring(jobVM.Name);
+            }
         }
 
         /// <summary>
-        /// Stops the progress update timer if it's running
+        /// Monitors the status and progress of a job and updates the corresponding ViewModel.
+        /// </summary>
+        private void StartJobStatusMonitoring(string jobName)
+        {
+            // Cancel any previous monitoring for this job
+            if (_jobMonitoringTokens.TryGetValue(jobName, out var oldCts))
+            {
+                oldCts.Cancel();
+                _jobMonitoringTokens.Remove(jobName);
+            }
+
+            var cts = new CancellationTokenSource();
+            _jobMonitoringTokens[jobName] = cts;
+            var token = cts.Token;
+
+            Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    var job = _viewModel.BackupManager.GetBackupJob(jobName);
+                    if (job == null)
+                        break;
+
+                    float progress = job.Progress;
+                    var state = job.State;
+                    var lastRunTime = job.LastRunTime;
+
+                    // Update the ViewModel for the job with the matching name on the UI thread
+                    Dispatcher.Invoke(() =>
+                    {
+                        var jobVm = _viewModel.BackupJobs.FirstOrDefault(j => j.Name == jobName);
+                        if (jobVm != null)
+                        {
+                            if (jobVm.Progress != progress)
+                                jobVm.Progress = progress;
+                            if (jobVm.State != state)
+                                jobVm.State = state;
+                            if (jobVm.LastRunTime != lastRunTime)
+                                jobVm.LastRunTime = lastRunTime;
+                        }
+                    });
+
+                    // Stop monitoring if job is no longer running
+                    if (state != JobState.RUNNING)
+                        break;
+
+                    await Task.Delay(500, token);
+                }
+
+                // Remove the token when done
+                _jobMonitoringTokens.Remove(jobName);
+            }, token);
+        }
+
+        /// <summary>
+        /// Stops all progress update timers and cancels all job monitoring tasks.
         /// </summary>
         private void StopProgressUpdates()
         {
@@ -276,6 +231,13 @@ namespace EasySaveV2
                 _progressUpdateTimer.Stop();
                 _progressUpdateTimer = null;
             }
+
+            // Cancel all job monitoring tasks
+            foreach (var cts in _jobMonitoringTokens.Values)
+            {
+                cts.Cancel();
+            }
+            _jobMonitoringTokens.Clear();
         }
 
         /// <summary>
@@ -315,12 +277,12 @@ namespace EasySaveV2
                 _viewModel.GetLocalizedString("appTitle"),
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
-                
+
             if (result == MessageBoxResult.Yes)
             {
                 // Stop any running jobs before closing
                 _viewModel.StopAllJobs();
-                
+
                 // Close the application
                 Application.Current.Shutdown();
             }

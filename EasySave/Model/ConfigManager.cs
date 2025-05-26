@@ -11,7 +11,9 @@ namespace EasySave.Model
         private string _configPath;
         private Dictionary<string, object> _settings;
 
-        public ConfigManager()
+        public int MaxParallelJobs { get; private set; } = Environment.ProcessorCount; // Default to number of CPU cores
+
+            public ConfigManager()
         {
             string baseConfigDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -29,6 +31,7 @@ namespace EasySave.Model
             else
             {
                 _settings["Language"] = "en";
+                _settings["MaxParallelJobs"] = MaxParallelJobs;
                 SaveConfig(_settings);
             }
         }
@@ -37,7 +40,12 @@ namespace EasySave.Model
         {
             try
             {
-                string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+                var configObj = new Dictionary<string, object>(settings)
+                {
+                    { "MaxParallelJobs", MaxParallelJobs }
+                };
+
+                string jsonString = JsonSerializer.Serialize(configObj, new JsonSerializerOptions
                 {
                     WriteIndented = true
                 });
@@ -59,6 +67,14 @@ namespace EasySave.Model
                 if (File.Exists(_configPath))
                 {
                     string jsonString = File.ReadAllText(_configPath);
+                    var configData = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+                    if (configData.TryGetProperty("MaxParallelJobs", out JsonElement maxParallelJobsElement) &&
+                        maxParallelJobsElement.TryGetInt32(out int maxParallelJobs))
+                    {
+                        MaxParallelJobs = maxParallelJobs > 0 ? maxParallelJobs : Environment.ProcessorCount;
+                    }
+
                     _settings = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString) ??
                         new Dictionary<string, object>();
                 }
@@ -101,6 +117,15 @@ namespace EasySave.Model
             {
                 return false;
             }
+        }
+
+        public void SetMaxParallelJobs(int maxJobs)
+        {
+            if (maxJobs <= 0)
+                maxJobs = Environment.ProcessorCount;
+
+            MaxParallelJobs = maxJobs;
+            SaveConfig(_settings);
         }
 
         public string GetLanguage()

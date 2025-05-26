@@ -125,9 +125,11 @@ namespace EasySave.ViewModel
             get => _progress;
             set
             {
-                // Always raise OnPropertyChanged, even if value is the same, to force UI update
-                _progress = value;
-                OnPropertyChanged(nameof(Progress));
+                if (Math.Abs(_progress - value) > 0.01f)
+                {
+                    _progress = value;
+                    OnPropertyChanged(nameof(Progress));
+                }
             }
         }
 

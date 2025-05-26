@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows;
 using EasySave.Model;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace EasySave.ViewModel
 {
@@ -35,6 +36,8 @@ namespace EasySave.ViewModel
                 {
                     _selectedJob = value;
                     OnPropertyChanged(nameof(SelectedJob));
+                    // FIX: Do NOT start job or status monitoring here!
+                    // Previously, if StartJobStatusMonitoring or job execution was called here, remove it.
                 }
             }
         }
@@ -175,6 +178,7 @@ namespace EasySave.ViewModel
                     return;
                 }
 
+                // Execute the job in parallel mode (BackupManager now handles this internally)
                 _backupManager.ExecuteBackupJob(job.Name);
             },
             job => job != null);
@@ -229,6 +233,15 @@ namespace EasySave.ViewModel
                 }
             });
         }
+
+            // Helper method to update the properties
+        private void UpdateJobViewModelProperties(BackupJobViewModel jobViewModel, float progress, Model.Enums.JobState state, DateTime lastRunTime)
+        {
+            jobViewModel.Progress = progress;
+            jobViewModel.State = state;
+            jobViewModel.LastRunTime = lastRunTime;
+        }
+
 
         /// <summary>
         /// Executes the currently selected job, if possible.
@@ -301,7 +314,7 @@ namespace EasySave.ViewModel
                 return;
             }
 
-            // Safe to execute all jobs
+            // Safe to execute all jobs in parallel
             _backupManager.ExecuteAllBackupJobs();
         }
 

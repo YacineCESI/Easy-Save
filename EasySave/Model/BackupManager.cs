@@ -4,17 +4,25 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
+// ...existing code...
+
+// Ensure that jobs are only started by explicit calls to ExecuteBackupJob or ExecuteAllBackupJobs.
+// Do NOT start jobs in GetBackupJob, GetAllJobs, or any property getter/setter.
+
+// ...existing code...
 namespace EasySave.Model
 {
     public class BackupManager
     {
         private List<BackupJob> backupJobs = new();
-        private Queue<BackupJob> jobQueue = new();
         private readonly ConfigManager _configManager;
         private readonly string _jobsConfigPath;
         private readonly Logger _logger;
         private readonly FileManager _fileManager;
+        // Track running tasks for each job
+        private readonly ConcurrentDictionary<string, Task> _runningTasks = new();
 
         // Default constructor
         public BackupManager()
@@ -80,10 +88,11 @@ namespace EasySave.Model
             return false;
         }
 
+        // Ensure that GetBackupJob returns the correct instance and does not share state between jobs
         public BackupJob GetBackupJob(string name)
         {
-            return backupJobs.FirstOrDefault(j =>
-                j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            // This should return the job instance with the given name
+            return backupJobs.FirstOrDefault(j => j.Name == name);
         }
 
         public List<BackupJob> GetAllJobs()
@@ -97,22 +106,78 @@ namespace EasySave.Model
             if (job != null)
             {
                 job.SetFileManager(_fileManager);
-                return job.Execute();
+                
+                // Launch job in a background task
+                var jobTask = Task.Run(() => job.Execute());
+                
+                // Store the task in the concurrent dictionary
+                _runningTasks[name] = jobTask;
+                
+                // Return true to indicate the job was launched successfully
+                return true;
             }
             return false;
         }
 
         public bool ExecuteAllBackupJobs()
         {
-            bool allSuccess = true;
+            // Create a list to track all tasks
+            List<Task<bool>> jobTasks = new List<Task<bool>>();
 
             foreach (BackupJob job in backupJobs)
             {
                 job.SetFileManager(_fileManager);
-                allSuccess &= job.Execute();
+                
+                // Create a task for each job
+                var jobTask = Task.Run(() => job.Execute());
+                
+                // Store the task reference
+                _runningTasks[job.Name] = jobTask;
+                
+                // Add to our tracking list
+                jobTasks.Add(jobTask);
             }
 
-            return allSuccess;
+            // Return true immediately since jobs are now running in parallel
+            // The actual results will be available in jobTasks when they complete
+            return true;
+        }
+
+        public async Task<bool> WaitForJobCompletion(string name, int timeoutMilliseconds = -1)
+        {
+            if (_runningTasks.TryGetValue(name, out var task))
+            {
+                if (timeoutMilliseconds < 0)
+                {
+                    await task.ConfigureAwait(false);
+                    return true;
+                }
+                else
+                {
+                    var completedTask = await Task.WhenAny(task, Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                    return completedTask == task;
+                }
+            }
+            return false;
+        }
+
+        public async Task<bool> WaitForAllJobs(int timeoutMilliseconds = -1)
+        {
+            var tasks = _runningTasks.Values.ToArray();
+            
+            if (tasks.Length == 0)
+                return true;
+                
+            if (timeoutMilliseconds < 0)
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+                return true;
+            }
+            else
+            {
+                var completedTask = await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                return completedTask != Task.Delay(timeoutMilliseconds);
+            }
         }
 
         public void PauseJob(string name)
