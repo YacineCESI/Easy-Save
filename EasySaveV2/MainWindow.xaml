@@ -50,9 +50,12 @@
 
     <Grid Margin="15">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Header with title and language selector -->
-            <RowDefinition Height="Auto"/> <!-- Settings -->
-            <RowDefinition Height="*"/>    <!-- Main content -->
+            <RowDefinition Height="Auto"/>
+            <!-- Header with title and language selector -->
+            <RowDefinition Height="Auto"/>
+            <!-- Settings -->
+            <RowDefinition Height="*"/>
+            <!-- Main content -->
         </Grid.RowDefinitions>
 
         <!-- Top Header - App Title and Language Selector -->
@@ -84,19 +87,82 @@
 
         <!-- Settings Section -->
         <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,15">
-            <StackPanel>
-                <TextBlock Text="Global Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-                
-                <!-- Bandwidth Limit Section -->
-                <StackPanel Orientation="Horizontal" Margin="0,5,0,5" VerticalAlignment="Center">
-                    <TextBlock Text="Bandwidth Limit (kB):" FontWeight="SemiBold" Margin="0,0,10,0" Width="140"/>
-                    <TextBox Width="90" 
-                             Text="{Binding BandwidthLimitKB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="5,3"/>
-                    <TextBlock Text="(Files larger than this will not transfer simultaneously)" 
-                               Margin="10,0,0,0" Foreground="#555" VerticalAlignment="Center"/>
+            <!-- Use a Grid for side-by-side layout -->
+
+            <Grid>
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*"/>
+                    <ColumnDefinition Width="1.2*"/>
+
+                </Grid.ColumnDefinitions>
+
+                <!-- Priority Extensions: Left Side -->
+
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <TextBlock Text="Global Settings" FontWeight="Bold" FontSize="16" Height="35"/>
+                    <TextBlock Text="Priority Extensions" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,2"/>
+                    <Border BorderBrush="#DDD" BorderThickness="1" Padding="6" Margin="0,0,0,0" Background="#FAFAFA">
+                        <StackPanel Width="426">
+                            <ListBox x:Name="PriorityExtensionsListBox"
+                                     ItemsSource="{Binding PriorityExtensions}"
+                                     Height="36"
+                                     Margin="0,0,0,6"
+                                     BorderBrush="#DDD"
+                                     BorderThickness="1"
+                                     Background="White"
+                                     Width="128"
+                                     FontSize="11"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="AddPriorityExtensionTextBox" 
+                                         Grid.Column="0" 
+                                         Margin="0,0,3,0" 
+                                         Padding="2,1"
+                                         Width="55"
+                                         FontSize="11"/>
+                                <Button Grid.Column="1" 
+                                        Content="Add" 
+                                        Width="32" 
+                                        Height="20"
+                                        Click="AddPriorityExtension_Click" 
+                                        Margin="0,0,3,0" 
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        FontSize="11"
+                                        Padding="4,0"/>
+                                <Button Grid.Column="2" 
+                                        Content="Rem" 
+                                        Height="20"
+                                        Click="RemovePriorityExtension_Click"
+                                        Style="{StaticResource ButtonStyle}"
+                                        FontSize="11"
+                                        Padding="4,0" Margin="10,5,10,5"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </StackPanel>
+                <!-- Bandwidth Limit: Right Side -->
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <!-- Bandwidth Limit Section -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Bandwidth Limit (kB):" FontWeight="SemiBold" Width="143" FontSize="13" RenderTransformOrigin="0.503,4.254"/>
+                        <TextBox Width="60" 
+                                 Text="{Binding BandwidthLimitKB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="3,2"
+                                 FontSize="12" RenderTransformOrigin="0.367,4.406"/>
+                        <TextBlock Text="(Files larger than this will not transfer simultaneously)" 
+                                   Margin="8,0,0,0" Foreground="#555" VerticalAlignment="Center" FontSize="11"/>
+                    </StackPanel>
+                    <!-- Bandwidth Limit Section -->
+                    <!-- Bandwidth Limit Section -->
+
+                    <!-- Bandwidth Limit Section -->
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Main Content -->
@@ -113,7 +179,7 @@
                                Text="Backup Jobs" 
                                Style="{StaticResource HeaderTextStyle}" 
                                FontSize="18"/>
-                    
+
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
                         <Button Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuCreateJob}" 
                                 Click="CreateJob_Click"
@@ -123,7 +189,7 @@
                                 Style="{StaticResource ButtonStyle}" 
                                 Click="RunAllJobs_Click"/>
                     </StackPanel>
-                    
+
                     <ListBox x:Name="JobsListBox"
                              ItemsSource="{Binding BackupJobs}"
                              SelectedItem="{Binding SelectedJob}"
@@ -290,42 +356,6 @@
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
                                         </ItemsControl>
-                                    </Border>
-
-                                    <!-- Priority Extensions Section -->
-                                    <TextBlock Text="Priority Extensions" Style="{StaticResource SectionHeaderStyle}"/>
-                                    <Border BorderBrush="#DDD" BorderThickness="1" Padding="10" Margin="5,0,5,0" Background="#FAFAFA">
-                                        <StackPanel>
-                                            <ListBox x:Name="PriorityExtensionsListBox"
-                                                    ItemsSource="{Binding PriorityExtensions}"
-                                                    Height="70"
-                                                    Margin="0,0,0,10"
-                                                    BorderBrush="#DDD"
-                                                    BorderThickness="1"
-                                                    Background="White"/>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="AddPriorityExtensionTextBox" 
-                                                        Grid.Column="0" 
-                                                        Margin="0,0,5,0" 
-                                                        Padding="5,3"/>
-                                                <Button Grid.Column="1" 
-                                                        Content="Add" 
-                                                        Width="60" 
-                                                        Click="AddPriorityExtension_Click" 
-                                                        Margin="0,0,5,0" 
-                                                        Style="{StaticResource ActionButtonStyle}"/>
-                                                <Button Grid.Column="2" 
-                                                        Content="Remove" 
-                                                        Width="70" 
-                                                        Click="RemovePriorityExtension_Click"
-                                                        Style="{StaticResource ButtonStyle}"/>
-                                            </Grid>
-                                        </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </ScrollViewer>
