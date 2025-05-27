@@ -1,15 +1,44 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
+using System.ComponentModel;
+using System.Collections.ObjectModel;
 
 namespace EasySave.Model
 {
 
-    public class ConfigManager
+    public class ConfigManager : INotifyPropertyChanged
     {
         private string _configPath;
         private Dictionary<string, object> _settings;
+
+        public int MaxParallelJobs { get; private set; } = Environment.ProcessorCount; // Default to number of CPU cores
+
+        private List<string> _priorityExtensions = new List<string> { ".pdf" }; // Default, can be loaded from config
+
+        private int _bandwidthLimitKB = 1024; // Default: 1MB
+
+        public int BandwidthLimitKB
+        {
+            get => _bandwidthLimitKB;
+            set
+            {
+                if (_bandwidthLimitKB != value)
+                {
+                    _bandwidthLimitKB = value;
+                    SaveBandwidthLimit();
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BandwidthLimitKB)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public ObservableCollection<string> PriorityExtensions { get; private set; } = new();
+
+        public string PriorityExtensionsDisplay => string.Join(", ", PriorityExtensions);
 
         public ConfigManager()
         {
@@ -29,15 +58,24 @@ namespace EasySave.Model
             else
             {
                 _settings["Language"] = "en";
+                _settings["MaxParallelJobs"] = MaxParallelJobs;
                 SaveConfig(_settings);
             }
+
+            LoadPriorityExtensions();
+            LoadBandwidthLimit();
         }
 
         public bool SaveConfig(Dictionary<string, object> settings)
         {
             try
             {
-                string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+                var configObj = new Dictionary<string, object>(settings)
+                {
+                    { "MaxParallelJobs", MaxParallelJobs }
+                };
+
+                string jsonString = JsonSerializer.Serialize(configObj, new JsonSerializerOptions
                 {
                     WriteIndented = true
                 });
@@ -59,6 +97,14 @@ namespace EasySave.Model
                 if (File.Exists(_configPath))
                 {
                     string jsonString = File.ReadAllText(_configPath);
+                    var configData = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+                    if (configData.TryGetProperty("MaxParallelJobs", out JsonElement maxParallelJobsElement) &&
+                        maxParallelJobsElement.TryGetInt32(out int maxParallelJobs))
+                    {
+                        MaxParallelJobs = maxParallelJobs > 0 ? maxParallelJobs : Environment.ProcessorCount;
+                    }
+
                     _settings = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString) ??
                         new Dictionary<string, object>();
                 }
@@ -101,6 +147,15 @@ namespace EasySave.Model
             {
                 return false;
             }
+        }
+
+        public void SetMaxParallelJobs(int maxJobs)
+        {
+            if (maxJobs <= 0)
+                maxJobs = Environment.ProcessorCount;
+
+            MaxParallelJobs = maxJobs;
+            SaveConfig(_settings);
         }
 
         public string GetLanguage()
@@ -147,6 +202,106 @@ namespace EasySave.Model
         public void SetCryptoSoftPath(string path)
         {
             _settings["CryptoSoftPath"] = path;
+        }
+
+        public List<string> GetPriorityExtensions()
+        {
+            // Always return a new list to avoid reference issues
+            return PriorityExtensions.ToList();
+        }
+
+        public void SetPriorityExtensions(List<string> extensions)
+        {
+            if (extensions == null) extensions = new List<string>();
+            _priorityExtensions = new List<string>(extensions);
+            PriorityExtensions.Clear();
+            foreach (var ext in _priorityExtensions)
+                PriorityExtensions.Add(ext);
+
+            // Save them
+            SavePriorityExtensions();
+
+            // Notify listeners (this is correct, as the property is named PriorityExtensions)
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PriorityExtensions)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PriorityExtensionsDisplay)));
+        }
+
+        private void LoadPriorityExtensions()
+        {
+            string configPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "EasySave", "config.json");
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (dict != null && dict.TryGetValue("PriorityExtensions", out var value) && value is JsonElement elem && elem.ValueKind == JsonValueKind.Array)
+                {
+                    _priorityExtensions = elem.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+                }
+            }
+            else
+            {
+                _priorityExtensions = new List<string> { ".pdf" };
+            }
+            PriorityExtensions.Clear();
+            foreach (var ext in _priorityExtensions)
+                PriorityExtensions.Add(ext);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PriorityExtensions)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PriorityExtensionsDisplay)));
+        }
+
+        private void SavePriorityExtensions()
+        {
+            string configDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "EasySave");
+            Directory.CreateDirectory(configDir);
+            string configPath = Path.Combine(configDir, "config.json");
+            Dictionary<string, object> dict = new();
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new();
+            }
+            dict["PriorityExtensions"] = _priorityExtensions;
+            File.WriteAllText(configPath, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private void LoadBandwidthLimit()
+        {
+            string configPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "EasySave", "config.json");
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (dict != null && dict.TryGetValue("BandwidthLimitKB", out var value))
+                {
+                    if (value is JsonElement elem && elem.ValueKind == JsonValueKind.Number && elem.TryGetInt32(out int kb))
+                        _bandwidthLimitKB = kb;
+                    else if (value is int kb2)
+                        _bandwidthLimitKB = kb2;
+                }
+            }
+        }
+
+        private void SaveBandwidthLimit()
+        {
+            string configDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "EasySave");
+            Directory.CreateDirectory(configDir);
+            string configPath = Path.Combine(configDir, "config.json");
+            Dictionary<string, object> dict = new();
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new();
+            }
+            dict["BandwidthLimitKB"] = _bandwidthLimitKB;
+            File.WriteAllText(configPath, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
         }
     }
 }

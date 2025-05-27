@@ -6,10 +6,13 @@ using System.Windows.Input;
 using System.Windows;
 using EasySave.Model;
 using System.Linq;
+using System.Threading.Tasks;
+using EasySave.Network;
+using System.Threading;
 
 namespace EasySave.ViewModel
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly BackupManager _backupManager;
         private readonly LanguageManager _languageManager;
@@ -17,12 +20,17 @@ namespace EasySave.ViewModel
         private readonly ConfigManager _configManager;
         private BackupJobViewModel _selectedJob;
         private string _currentLanguage;
+        private RemoteConsoleServer _remoteConsoleServer;
+        private System.Net.Sockets.Socket _remoteConsoleSocket;
+        private Timer _broadcastTimer;
 
         // Event that will be raised when the language changes
         public event EventHandler LanguageChanged;
 
         public ObservableCollection<BackupJobViewModel> BackupJobs { get; }
         public ObservableCollection<string> AvailableLanguages { get; }
+        public ObservableCollection<string> PriorityExtensions => _configManager.PriorityExtensions;
+        public string PriorityExtensionsDisplay => _configManager.PriorityExtensionsDisplay;
 
         public BackupManager BackupManager => _backupManager;
 
@@ -35,6 +43,8 @@ namespace EasySave.ViewModel
                 {
                     _selectedJob = value;
                     OnPropertyChanged(nameof(SelectedJob));
+                    // FIX: Do NOT start job or status monitoring here!
+                    // Previously, if StartJobStatusMonitoring or job execution was called here, remove it.
                 }
             }
         }
@@ -81,6 +91,19 @@ namespace EasySave.ViewModel
             }
         }
 
+        public int BandwidthLimitKB
+        {
+            get => _configManager.BandwidthLimitKB;
+            set
+            {
+                if (_configManager.BandwidthLimitKB != value)
+                {
+                    _configManager.BandwidthLimitKB = value;
+                    OnPropertyChanged(nameof(BandwidthLimitKB));
+                }
+            }
+        }
+
         // Localized strings properties
         public string WindowTitle => _languageManager.GetString("strMainWindowTitle") ?? "EasySave Backup";
         public string BackupJobsHeader => _languageManager.GetString("strBackupJobs") ?? "Backup Jobs";
@@ -119,6 +142,9 @@ namespace EasySave.ViewModel
         public ICommand ResumeJobCommand { get; }
         public ICommand StopJobCommand { get; }
 
+        // Example: expose job progress and commands to the UI
+        public ObservableCollection<BackupJobViewModel> Jobs { get; set; }
+
         public MainViewModel(BackupManager backupManager, LanguageManager languageManager,
             BusinessSoftwareManager businessSoftwareManager, ConfigManager configManager)
         {
@@ -154,30 +180,48 @@ namespace EasySave.ViewModel
                 }
             });
 
+            _configManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ConfigManager.PriorityExtensions) ||
+                    e.PropertyName == nameof(ConfigManager.PriorityExtensionsDisplay))
+                {
+                    OnPropertyChanged(nameof(PriorityExtensions));
+                    OnPropertyChanged(nameof(PriorityExtensionsDisplay));
+                }
+                if (e.PropertyName == nameof(ConfigManager.BandwidthLimitKB))
+                {
+                    OnPropertyChanged(nameof(BandwidthLimitKB));
+                }
+            };
+
             // Modified RunJobCommand to check job's own blocked processes
             RunJobCommand = new RelayCommand<BackupJobViewModel>(job =>
             {
                 if (job == null)
                     return;
 
-                // Check if any of this job's blocked processes are running
                 var blockedProcesses = job.BlockedProcesses?.ToList() ?? new List<string>();
                 var runningProcesses = _businessSoftwareManager.GetRunningBlockedProcesses(blockedProcesses);
 
                 if (runningProcesses.Count > 0)
                 {
-                    // Notify that blocked processes are running
                     BlockedProcessesDetected?.Invoke(this, runningProcesses);
-
-                    // Stop any ongoing job with this name
                     _backupManager.StopJob(job.Name);
-
                     return;
                 }
 
-                _backupManager.ExecuteBackupJob(job.Name);
+                // Vérifiez l'état du job
+                if (job.State == Model.Enums.JobState.PAUSED)
+                {
+                    _backupManager.ResumeBackupJob(job.Name); // Use ResumeBackupJob
+                }
+                else
+                {
+                    _backupManager.ExecuteBackupJob(job.Name);
+                }
             },
-            job => job != null);
+     job => job != null);
+
 
             // Modified RunAllJobsCommand to respect Can Execute condition
             RunAllJobsCommand = new RelayCommand(ExecuteAllJobs, () => BackupJobs.Count > 0);
@@ -212,12 +256,17 @@ namespace EasySave.ViewModel
 
                     if (runningProcesses.Count > 0)
                     {
-                        // Notify that blocked processes are running
                         BlockedProcessesDetected?.Invoke(this, runningProcesses);
                         return;
                     }
 
-                    _backupManager.ResumeJob(job.Name);
+                    // Only resume if not already running
+                    var modelJob = _backupManager.GetBackupJob(job.Name);
+                    if (modelJob != null && modelJob.State == Model.Enums.JobState.PAUSED)
+                    {
+                        _backupManager.ResumeBackupJob(job.Name); // Use ResumeBackupJob
+                        System.Diagnostics.Debug.WriteLine($"[MainViewModel] Job '{job.Name}' resumed using ResumeBackupJob.");
+                    }
                 }
             });
 
@@ -228,6 +277,79 @@ namespace EasySave.ViewModel
                     _backupManager.StopJob(job.Name);
                 }
             });
+
+            // Add this to notify UI when priority extensions change
+            _configManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ConfigManager.PriorityExtensions) ||
+                    e.PropertyName == nameof(ConfigManager.PriorityExtensionsDisplay))
+                {
+                    OnPropertyChanged(nameof(PriorityExtensions));
+                    OnPropertyChanged(nameof(PriorityExtensionsDisplay));
+                }
+            };
+
+            // Initialize Jobs and bind to BackupManager
+            // Fix the incorrect assignment of BackupManager to BackupManager property in BackupJobViewModel
+            Jobs = new ObservableCollection<BackupJobViewModel>(
+                backupManager.GetAllJobs().Select(j => new BackupJobViewModel(j) { BackupManager = _configManager })
+            );
+
+            // Start remote console server
+            _remoteConsoleServer = new RemoteConsoleServer(_backupManager);
+          //  _remoteConsoleSocket = _remoteConsoleServer.Connect(); // Ensure socket is created and listening
+            _remoteConsoleServer.RemoteCommandReceived += OnRemoteCommandReceived;
+            _remoteConsoleServer.Start(); // Now safe to call Start()
+
+            // Optionally: broadcast job status on timer or on job state change
+            StartJobStatusBroadcasting();
+        }
+
+        private void OnRemoteCommandReceived(string command, string jobName)
+        {
+            // Handle remote commands: pause, resume, stop, run
+            var job = BackupJobs.FirstOrDefault(j => j.Name == jobName);
+            if (command == null) return;
+            switch (command.ToLowerInvariant())
+            {
+                case "pause":
+                    if (job != null) PauseJob(job);
+                    break;
+                case "resume":
+                    if (job != null) ResumeJob(job);
+                    break;
+                case "stop":
+                    if (job != null) StopJob(job);
+                    break;
+                case "run":
+                    if (job != null) ExecuteJob(job);
+                    break;
+            }
+        }
+
+        // Add this helper for running a single job
+        public void ExecuteJob(BackupJobViewModel job)
+        {
+            if (job != null)
+            {
+                _backupManager.ExecuteBackupJob(job.Name);
+            }
+        }
+
+        private void StartJobStatusBroadcasting()
+        {
+            _broadcastTimer = new Timer(async _ =>
+            {
+                await _remoteConsoleServer.BroadcastJobStatusAsync();
+            }, null, 0, 1000); // every 1 second
+        }
+
+        // Helper method to update the properties
+        private void UpdateJobViewModelProperties(BackupJobViewModel jobViewModel, float progress, Model.Enums.JobState state, DateTime lastRunTime)
+        {
+            jobViewModel.Progress = progress;
+            jobViewModel.State = state;
+            jobViewModel.LastRunTime = lastRunTime;
         }
 
         /// <summary>
@@ -250,17 +372,22 @@ namespace EasySave.ViewModel
             var runningBlockedProcesses = GetRunningBlockedProcessesForSelectedJob();
             if (runningBlockedProcesses.Count > 0)
             {
-                // Let MainWindow handle the popup
                 BlockedProcessesDetected?.Invoke(this, runningBlockedProcesses);
-
-                // Stop the job if it was already running
                 _backupManager.StopJob(SelectedJob.Name);
-
                 return;
             }
 
-            // Safe to execute
-            RunJobCommand.Execute(SelectedJob);
+            try
+            {
+                // Bandwidth check and job execution
+                var result = _backupManager.ExecuteBackupJob(SelectedJob.Name);
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] ExecuteSelectedJob result: {result}");
+            }
+            catch (BandwidthLimitExceededException ex)
+            {
+                // Raise an event or set a property to notify the UI
+                BandwidthLimitExceeded?.Invoke(this, ex.Message);
+            }
         }
 
         /// <summary>
@@ -301,12 +428,16 @@ namespace EasySave.ViewModel
                 return;
             }
 
-            // Safe to execute all jobs
-            _backupManager.ExecuteAllBackupJobs();
+            // Safe to execute all jobs in parallel
+            var result = _backupManager.ExecuteAllBackupJobs();
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] ExecuteAllJobs result: {result}");
         }
 
         // Add an event to notify MainWindow of blocked processes
         public event EventHandler<List<string>> BlockedProcessesDetected;
+
+        // Add an event to notify MainWindow of bandwidth limit exceeded
+        public event EventHandler<string> BandwidthLimitExceeded;
 
         /// <summary>
         /// Continuously checks if any blocked processes start running during job execution
@@ -332,10 +463,33 @@ namespace EasySave.ViewModel
             }
         }
 
+        // Add these public methods for MainWindow to call
+        public void PauseJob(BackupJobViewModel job)
+        {
+            PauseJobCommand.Execute(job);
+        }
+
+        public void ResumeJob(BackupJobViewModel job)
+        {
+            ResumeJobCommand.Execute(job);
+        }
+
+        public void StopJob(BackupJobViewModel job)
+        {
+            StopJobCommand.Execute(job);
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         public virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // Dispose pattern to stop server when ViewModel is disposed
+        public void Dispose()
+        {
+            _remoteConsoleServer?.Dispose();
+            _broadcastTimer?.Dispose();
         }
     }
 

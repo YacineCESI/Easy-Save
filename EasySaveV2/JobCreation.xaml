@@ -7,207 +7,279 @@
         xmlns:local="clr-namespace:EasySaveV2"
         mc:Ignorable="d"
         Title="Create Backup Job" 
-        Height="550" Width="650"
+        Height="600" Width="650"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
 
     <Window.Resources>
         <converters:NullToBoolConverter x:Key="BooleanConverter"/>
+        
+        <Style TargetType="TextBlock" x:Key="SectionHeaderStyle">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,15,0,8"/>
+        </Style>
+        
         <Style TargetType="TextBlock" x:Key="LabelStyle">
-            <Setter Property="Margin" Value="0,5,0,2"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+        
         <Style TargetType="TextBox" x:Key="InputStyle">
-            <Setter Property="Margin" Value="0,2,0,10"/>
-            <Setter Property="Padding" Value="5"/>
-            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,3,0,10"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
         </Style>
+        
         <Style TargetType="Button" x:Key="StandardButton">
             <Setter Property="Padding" Value="15,5"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="32"/>
         </Style>
+        
         <Style TargetType="Button" x:Key="PrimaryButton" BasedOn="{StaticResource StandardButton}">
             <Setter Property="Background" Value="#007ACC"/>
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        
+        <Style TargetType="Expander">
+            <Setter Property="Margin" Value="0,8,0,8"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#F5F5F5"/>
+        </Style>
+        
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,10,0,10"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Border Background="#F9F9F9" BorderBrush="#DDD" BorderThickness="0">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <TextBlock Text="Create New Backup Job" 
-                   FontSize="22" 
-                   FontWeight="Bold" 
-                   Margin="0,0,0,15"/>
+            <!-- Header -->
+            <Border Grid.Row="0" BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="0,0,0,10" Margin="0,0,0,15">
+                <TextBlock Text="Create New Backup Job" 
+                       FontSize="24" 
+                       FontWeight="Bold"/>
+            </Border>
 
-        <!-- Main Content -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <!-- Job Name -->
-                <TextBlock Text="Job Name" Style="{StaticResource LabelStyle}"/>
-                <TextBox x:Name="JobNameTextBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
-                         Style="{StaticResource InputStyle}"/>
+            <!-- Main Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Basic Information Section -->
+                    <TextBlock Text="Basic Information" Style="{StaticResource SectionHeaderStyle}"/>
+                    <Border Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <!-- Job Name -->
+                            <TextBlock Text="Job Name" Style="{StaticResource LabelStyle}"/>
+                            <TextBox x:Name="JobNameTextBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
+                                 Style="{StaticResource InputStyle}"/>
 
-                <!-- Source Directory -->
-                <TextBlock Text="Source Directory" Style="{StaticResource LabelStyle}"/>
+                            <!-- Source Directory -->
+                            <TextBlock Text="Source Directory" Style="{StaticResource LabelStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="SourceDirTextBox" Text="{Binding SourceDirectory, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource InputStyle}"/>
+                                <Button Grid.Column="1" Content="Browse" 
+                                    Click="BrowseSourceButton_Click"
+                                    Style="{StaticResource StandardButton}"
+                                    Margin="5,3,0,10"/>
+                            </Grid>
+
+                            <!-- Target Directory -->
+                            <TextBlock Text="Target Directory" Style="{StaticResource LabelStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TargetDirTextBox" Text="{Binding TargetDirectory, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource InputStyle}"/>
+                                <Button Grid.Column="1" Content="Browse" 
+                                    Click="BrowseTargetButton_Click"
+                                    Style="{StaticResource StandardButton}"
+                                    Margin="5,3,0,10"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Backup Type Section -->
+                    <TextBlock Text="Backup Type" Style="{StaticResource SectionHeaderStyle}"/>
+                    <Border Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <RadioButton x:Name="FullBackupCheckBox" Content="Full Backup" 
+                                      Margin="0,5,0,5"
+                                      Checked="BackupTypeCheckBox_Checked"
+                                      Tag="FULL"
+                                      FontWeight="Medium"/>
+                            <TextBlock Text="Copies all files from the source to the target directory" 
+                                     Margin="20,0,0,10" Foreground="#666"/>
+
+                            <RadioButton x:Name="DifferentialBackupCheckBox" Content="Differential Backup" 
+                                      Margin="0,5,0,5"
+                                      Checked="BackupTypeCheckBox_Checked"
+                                      Tag="DIFFERENTIAL"
+                                      FontWeight="Medium"/>
+                            <TextBlock Text="Only copies files that have changed since the last full backup" 
+                                     Margin="20,0,0,5" Foreground="#666"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Encryption Settings -->
+                    <Expander Header="Encryption Settings" IsExpanded="True" Padding="0">
+                        <Border Background="White" Padding="15">
+                            <StackPanel>
+                                <CheckBox x:Name="EncryptFilesCheckBox"
+                                      Content="Encrypt Files"
+                                      IsChecked="{Binding EncryptFiles, Mode=TwoWay}"
+                                      Checked="EncryptFilesCheckBox_Checked"
+                                      Unchecked="EncryptFilesCheckBox_Checked"
+                                      Margin="0,5,0,10"
+                                      FontWeight="Medium"/>
+                                
+                                <TextBlock Text="File Extensions to Encrypt" Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ExtensionTextBox" Grid.Column="0" Style="{StaticResource InputStyle}" Margin="0,3,5,10"/>
+                                    <Button Grid.Column="1" Content="Add" 
+                                        x:Name="AddExtensionButton"
+                                        Click="AddExtensionButton_Click" 
+                                        Style="{StaticResource StandardButton}"
+                                        Margin="0,3,5,10"/>
+                                    <Button Grid.Column="2" Content="Remove" 
+                                        x:Name="RemoveExtensionButton"
+                                        Click="RemoveExtensionButton_Click" 
+                                        Style="{StaticResource StandardButton}"
+                                        Margin="0,3,0,10"/>
+                                </Grid>
+                                
+                                <Border BorderBrush="#DDD" BorderThickness="1" Background="#FAFAFA" Padding="5">
+                                    <ListBox x:Name="ExtensionsListBox" 
+                                         ItemsSource="{Binding ExtensionsToEncrypt}"
+                                         Height="100"
+                                         SelectionMode="Extended"
+                                         BorderThickness="0"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+
+                    <!-- Blocked Processes -->
+                    <Expander Header="Blocked Processes" IsExpanded="True" Padding="0">
+                        <Border Background="White" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="Processes that will block backup execution:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#666666">
+                                Enter process names (without .exe) that should prevent backup execution when running.
+                                </TextBlock>
+                                
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ProcessTextBox" 
+                                         Grid.Column="0"
+                                         Style="{StaticResource InputStyle}"
+                                         TextChanged="ProcessTextBox_TextChanged"
+                                         Margin="0,3,5,10"/>
+                                    <Button Grid.Column="1" Content="Add" 
+                                        x:Name="AddProcessButton"
+                                        Click="AddProcessButton_Click" 
+                                        Style="{StaticResource StandardButton}"
+                                        Margin="0,3,5,10"
+                                        IsEnabled="{Binding ElementName=ProcessTextBox, Path=Text.Length, Converter={StaticResource BooleanConverter}}"/>
+                                    <Button Grid.Column="2" Content="Remove" 
+                                        x:Name="RemoveProcessButton"
+                                        Click="RemoveProcessButton_Click" 
+                                        Style="{StaticResource StandardButton}"
+                                        Margin="0,3,0,10"
+                                        IsEnabled="{Binding ElementName=ProcessesListBox, Path=SelectedItems.Count, Converter={StaticResource BooleanConverter}}"/>
+                                </Grid>
+                                
+                                <Border BorderBrush="#DDD" BorderThickness="1" Background="#FAFAFA" Padding="5">
+                                    <ListBox x:Name="ProcessesListBox" 
+                                         ItemsSource="{Binding BlockedProcesses}"
+                                         Height="100"
+                                         SelectionMode="Extended"
+                                         BorderThickness="0"/>
+                                </Border>
+                                
+                                <TextBlock Text="Note: If any of these processes are running when you attempt to run the backup job, the job will be blocked until they are closed." 
+                                       TextWrapping="Wrap" 
+                                       FontStyle="Italic" 
+                                       Foreground="#666666"
+                                       Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+
+                    <!-- Log Format Settings -->
+                    <TextBlock Text="Log Settings" Style="{StaticResource SectionHeaderStyle}"/>
+                    <Border Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="15" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Log Format:" VerticalAlignment="Center" Width="120" FontWeight="SemiBold"/>
+                            <RadioButton x:Name="JsonFormatRadioButton" Content="JSON" 
+                                     IsChecked="True" GroupName="LogFormat" Margin="0,0,20,0" 
+                                     Checked="LogFormatRadioButton_Checked" />
+                            <RadioButton x:Name="XamlFormatRadioButton" Content="XAML" 
+                                     GroupName="LogFormat" 
+                                     Checked="LogFormatRadioButton_Checked" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom Buttons -->
+            <Border Grid.Row="2" Background="#F5F5F5" BorderBrush="#DDD" BorderThickness="0,1,0,0" Padding="0,15,0,0" Margin="0,15,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="SourceDirTextBox" Text="{Binding SourceDirectory, UpdateSourceTrigger=PropertyChanged}" 
-                             Style="{StaticResource InputStyle}"/>
-                    <Button Grid.Column="1" Content="Browse" 
-                            Click="BrowseSourceButton_Click"
-                            Style="{StaticResource StandardButton}"
-                            Margin="5,2,0,10"/>
-                </Grid>
-
-                <!-- Target Directory -->
-                <TextBlock Text="Target Directory" Style="{StaticResource LabelStyle}"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="TargetDirTextBox" Text="{Binding TargetDirectory, UpdateSourceTrigger=PropertyChanged}" 
-                             Style="{StaticResource InputStyle}"/>
-                    <Button Grid.Column="1" Content="Browse" 
-                            Click="BrowseTargetButton_Click"
-                            Style="{StaticResource StandardButton}"
-                            Margin="5,2,0,10"/>
+
+                    <Button Grid.Column="1" Content="Save" 
+                        x:Name="SaveButton"
+                        Style="{StaticResource PrimaryButton}"
+                        Click="SaveButton_Click" 
+                        IsDefault="True" 
+                        Height="34" 
+                        MinWidth="100" 
+                        Margin="5,0,10,0"/>
+
+                    <Button Grid.Column="2" Content="Cancel" 
+                        x:Name="CancelButton"
+                        Click="CancelButton_Click"
+                        Style="{StaticResource StandardButton}" 
+                        IsCancel="True"
+                        Height="34" 
+                        MinWidth="100"/>
                 </Grid>
-
-                <!-- Backup Type -->
-                <TextBlock Text="Backup Type" Style="{StaticResource LabelStyle}"/>
-                <StackPanel Margin="0,2,0,10">
-                    <CheckBox x:Name="FullBackupCheckBox" Content="Full Backup" 
-                              Margin="0,5,0,5"
-                              Checked="BackupTypeCheckBox_Checked"
-                              Tag="FULL"/>
-                    <CheckBox x:Name="DifferentialBackupCheckBox" Content="Differential Backup" 
-                              Margin="0,5,0,5"
-                              Checked="BackupTypeCheckBox_Checked"
-                              Tag="DIFFERENTIAL"/>
-                </StackPanel>
-
-                <!-- Encryption Settings -->
-                <Expander Header="Encryption Settings" Margin="0,10,0,10" IsExpanded="True">
-                    <StackPanel Margin="10">
-                        <CheckBox x:Name="EncryptFilesCheckBox"
-                                  Content="Encrypt Files"
-                                  IsChecked="{Binding EncryptFiles, Mode=TwoWay}"
-                                  Checked="EncryptFilesCheckBox_Checked"
-                                  Unchecked="EncryptFilesCheckBox_Checked"
-                                  Margin="0,5"/>
-                        <TextBlock Text="File Extensions to Encrypt" Style="{StaticResource LabelStyle}"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="ExtensionTextBox" Margin="0,2,5,10" Style="{StaticResource InputStyle}"/>
-                            <Button Grid.Column="1" Content="Add" 
-                                    x:Name="AddExtensionButton"
-                                    Click="AddExtensionButton_Click" 
-                                    Style="{StaticResource StandardButton}"
-                                    Margin="0,2,5,10"/>
-                            <Button Grid.Column="2" Content="Remove" 
-                                    x:Name="RemoveExtensionButton"
-                                    Click="RemoveExtensionButton_Click" 
-                                    Style="{StaticResource StandardButton}"
-                                    Margin="0,2,0,10"/>
-                        </Grid>
-                        <ListBox x:Name="ExtensionsListBox" 
-                                 ItemsSource="{Binding ExtensionsToEncrypt}"
-                                 Height="100"
-                                 SelectionMode="Extended"
-                                 Margin="0,0,0,10"/>
-                    </StackPanel>
-                </Expander>
-
-                <!-- Blocked Processes -->
-                <Expander Header="Blocked Processes" Margin="0,0,0,10" IsExpanded="True">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Processes that will block backup execution:" Style="{StaticResource LabelStyle}"/>
-                        <TextBlock FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#666666">
-                            Enter process names (without .exe) that should prevent backup execution when running.
-                        </TextBlock>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="ProcessTextBox" 
-                                     Margin="0,2,5,10" 
-                                     Style="{StaticResource InputStyle}"
-                                     TextChanged="ProcessTextBox_TextChanged"/>
-                            <Button Grid.Column="1" Content="Add" 
-                                    x:Name="AddProcessButton"
-                                    Click="AddProcessButton_Click" 
-                                    Style="{StaticResource StandardButton}"
-                                    Margin="0,2,5,10"
-                                    IsEnabled="{Binding ElementName=ProcessTextBox, Path=Text.Length, Converter={StaticResource BooleanConverter}}"/>
-                            <Button Grid.Column="2" Content="Remove" 
-                                    x:Name="RemoveProcessButton"
-                                    Click="RemoveProcessButton_Click" 
-                                    Style="{StaticResource StandardButton}"
-                                    Margin="0,2,0,10"
-                                    IsEnabled="{Binding ElementName=ProcessesListBox, Path=SelectedItems.Count, Converter={StaticResource BooleanConverter}}"/>
-                        </Grid>
-                        <ListBox x:Name="ProcessesListBox" 
-                                 ItemsSource="{Binding BlockedProcesses}"
-                                 Height="100"
-                                 SelectionMode="Extended"
-                                 Margin="0,0,0,10"/>
-                        <TextBlock Text="Note: If any of these processes are running when you attempt to run the backup job, the job will be blocked until they are closed." 
-                                   TextWrapping="Wrap" 
-                                   FontStyle="Italic" 
-                                   Foreground="#666666"/>
-                    </StackPanel>
-                </Expander>
-
-                <!-- Log Format -->
-                <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Margin="0,10,0,0">
-                    <TextBlock Text="Log Format:" VerticalAlignment="Center" Width="120" />
-                    <RadioButton x:Name="JsonFormatRadioButton" Content="JSON" 
-                                 IsChecked="True" GroupName="LogFormat" Margin="0,0,10,0" 
-                                 Checked="LogFormatRadioButton_Checked" />
-                    <RadioButton x:Name="XamlFormatRadioButton" Content="XAML" 
-                                 GroupName="LogFormat" Margin="10,0,0,0"
-                                 Checked="LogFormatRadioButton_Checked" />
-                </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Bottom Buttons -->
-        <Grid Grid.Row="2" Margin="0,15,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <Button Grid.Column="1" Content="Save" 
-                    x:Name="SaveButton"
-                    Style="{StaticResource PrimaryButton}"
-                    Click="SaveButton_Click" 
-                    IsDefault="True" Height="28" Margin="5,5,5,0" VerticalAlignment="Top"/>
-
-            <Button Grid.Column="2" Content="Cancel" 
-                    x:Name="CancelButton"
-                    Click="CancelButton_Click"
-                    Style="{StaticResource StandardButton}" 
-                    IsCancel="True"/>
+            </Border>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

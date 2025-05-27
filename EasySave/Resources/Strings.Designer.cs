@@ -171,6 +171,15 @@ namespace EasySave.Resources {
         /// <summary>
         ///   Recherche une chaîne localisée semblable à Resume.
         /// </summary>
+        internal static string jobResumed {
+            get {
+                return ResourceManager.GetString("jobResumed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Resume.
+        /// </summary>
         internal static string jobStarted {
             get {
                 return ResourceManager.GetString("jobStarted", resourceCulture);

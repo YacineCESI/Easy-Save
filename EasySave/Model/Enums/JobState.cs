@@ -9,6 +9,7 @@ namespace EasySave.Model.Enums
         RUNNING,   
         PAUSED,    
         COMPLETED, 
-        FAILED     
+        FAILED,
+        STOPPED
     }
 }

@@ -24,6 +24,26 @@ namespace EasySave.ViewModel
         {
             ExtensionsToEncrypt = new ObservableCollection<string>();
             BlockedProcesses = new ObservableCollection<string>();
+
+            // Use parameterless lambdas for RelayCommand (no arguments)
+            PauseCommand = new RelayCommand(() => BackupManager?.SetSetting("PauseJob", Name));
+            // Update the PlayCommand initialization to use the new ResumeBackupJob method from BackupManager
+            PlayCommand = new RelayCommand(() => BackupManager?.SetSetting("ResumeJob", Name));
+
+           /* PlayCommand = new RelayCommand(() =>
+            {
+                if (BackupManager is EasySave.Model.BackupManager bm)
+                {
+                    bm.ResumeBackupJob(Name);
+                }
+                else
+                {
+                    // fallback for ConfigManager or other types, if needed
+                    BackupManager?.SetSetting("ResumeJob", Name);
+                }
+            });*/
+
+            StopCommand = new RelayCommand(() => BackupManager?.SetSetting("StopJob", Name));
         }
 
         public BackupJobViewModel(BackupJob job)
@@ -125,9 +145,11 @@ namespace EasySave.ViewModel
             get => _progress;
             set
             {
-                // Always raise OnPropertyChanged, even if value is the same, to force UI update
-                _progress = value;
-                OnPropertyChanged(nameof(Progress));
+                if (Math.Abs(_progress - value) > 0.01f)
+                {
+                    _progress = value;
+                    OnPropertyChanged(nameof(Progress));
+                }
             }
         }
 
@@ -165,6 +187,9 @@ namespace EasySave.ViewModel
         public ICommand SaveCommand { get; set; }
         public ICommand BrowseSourceCommand { get; set; }
         public ICommand BrowseTargetCommand { get; set; }
+        public ICommand PauseCommand { get; set; }
+        public ICommand PlayCommand { get; set; }
+        public ICommand StopCommand { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged(string propertyName) =>
@@ -248,8 +273,7 @@ namespace EasySave.ViewModel
         /// </summary>
         public bool HasBlockedProcesses => BlockedProcesses != null && BlockedProcesses.Count > 0;
 
-
-
+        public ConfigManager BackupManager { get; set; }
     }
 
 }
