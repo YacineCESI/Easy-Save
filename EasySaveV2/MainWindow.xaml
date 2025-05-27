@@ -228,19 +228,19 @@
                                 Style="{StaticResource ActionButtonStyle}"
                                 IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
-<<<<<<< HEAD
+
                     <Button Grid.Row="0" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobStarted}" 
                             Command="{Binding PauseJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
-                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}" Click="Button_Click"/>
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
 
                     <Button Grid.Row="0" Grid.Column="2" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
                             Command="{Binding ResumeJobCommand}"
                             CommandParameter="{Binding SelectedJob}"
                             Style="{StaticResource ButtonStyle}"
-                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}" Click="Button_Click"/>
-=======
+                            IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
+
                         <Button Grid.Row="0" Grid.Column="1" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=jobPaused}" 
                                 Command="{Binding PauseJobCommand}"
                                 CommandParameter="{Binding SelectedJob}"
@@ -251,7 +251,7 @@
                                 Click="ResumeJob_Click"
                                 Style="{StaticResource ButtonStyle}"
                                 IsEnabled="{Binding SelectedJob, TargetNullValue=False}"/>
->>>>>>> YacineBranche
+
 
                         <Button Grid.Row="0" Grid.Column="3" Content="{Binding Converter={StaticResource LocalizeString}, ConverterParameter=menuRemoveJob}" 
                                 Command="{Binding RemoveJobCommand}"
