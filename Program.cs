@@ -3,25 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using EasySave.View;
-using EasySave.ViewModel;
+using System.Windows;
+using Easy_Save.View;
 
-namespace EasySave
+namespace EasySave;
+
+class Program
 {
-    internal class Program
+    [STAThread]
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
-        {
-            
-
-                
-            var mainViewModel = new MainViewModel();
-
-            
-            var consoleInterface = new ConsoleInterface(mainViewModel);
-
-           
-            consoleInterface.Start();
-        }
+        var app = new Application();
+        var mainWindow = new MainWindow();
+        app.Run(mainWindow);
     }
 }
